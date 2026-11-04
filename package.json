@@ -2,7 +2,7 @@
   "name": "vscode-jev-linter",
   "displayName": "Jev Security Linter",
   "description": "Ultra-fast security vulnerability linter powered by TypeSafe Jev via OpenRouter.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "camegone",
   "license": "MIT",
   "repository": {
@@ -69,32 +69,12 @@
           "maximum": 1.0,
           "description": "%config.threshold.description%"
         },
-        "jevLinter.windowLines": {
-          "type": "number",
-          "default": 30,
-          "minimum": 10,
-          "maximum": 200,
-          "description": "%config.windowLines.description%"
-        },
-        "jevLinter.overlapLines": {
-          "type": "number",
-          "default": 10,
-          "minimum": 0,
-          "maximum": 50,
-          "description": "%config.overlapLines.description%"
-        },
         "jevLinter.concurrency": {
           "type": "number",
           "default": 4,
           "minimum": 1,
           "maximum": 10,
           "description": "%config.concurrency.description%"
-        },
-        "jevLinter.searchStrategy": {
-          "type": "string",
-          "enum": ["binarySearch", "slidingWindow"],
-          "default": "binarySearch",
-          "description": "%config.searchStrategy.description%"
         },
         "jevLinter.minimumBlockSize": {
           "type": "number",
@@ -114,7 +94,6 @@
           "type": "number",
           "default": 60000,
           "minimum": 1000,
-          "maximum": 200000,
           "description": "%config.maxChunkChars.description%"
         },
         "jevLinter.scanOnSave": {

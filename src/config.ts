@@ -6,12 +6,9 @@ export interface LinterConfig {
   apiEndpoint: string;
   model: string;
   threshold: number;
-  searchStrategy: 'binarySearch' | 'slidingWindow';
   minimumBlockSize: number;
   overlapRatio: number;
   maxChunkChars: number;
-  windowLines: number;
-  overlapLines: number;
   concurrency: number;
   scanOnSave: boolean;
   supportedLanguages: string[];
@@ -27,14 +24,11 @@ export function getLinterConfig(): LinterConfig {
     apiEndpoint: config
       .get<string>('apiEndpoint', 'https://openrouter.ai/api/v1/systemone')
       .trim(),
-    model: config.get<string>('model', '~typesafe/jev-latest').trim(),
+    model: config.get<string>('model', 'typesafe/jev-1.13').trim(),
     threshold: config.get<number>('threshold', 0.65),
-    searchStrategy: config.get<'binarySearch' | 'slidingWindow'>('searchStrategy', 'binarySearch'),
     minimumBlockSize: Math.max(1, config.get<number>('minimumBlockSize', 4)),
     overlapRatio: Math.min(0.4, Math.max(0.0, config.get<number>('overlapRatio', 0.15))),
     maxChunkChars: Math.max(1000, config.get<number>('maxChunkChars', 60000)),
-    windowLines: Math.max(10, config.get<number>('windowLines', 30)),
-    overlapLines: Math.max(0, config.get<number>('overlapLines', 10)),
     concurrency: Math.max(1, config.get<number>('concurrency', 4)),
     scanOnSave: config.get<boolean>('scanOnSave', true),
     supportedLanguages: config.get<string[]>('supportedLanguages', [

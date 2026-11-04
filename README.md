@@ -63,12 +63,9 @@ Edit and save any file in a supported language (`Ctrl + S` / `Cmd + S`). A real-
 | `jevLinter.apiEndpoint` | `"https://openrouter.ai/api/v1/systemone"` | OpenRouter System One API Endpoint |
 | `jevLinter.model` | `"~typesafe/jev-latest"` | Decision AI model to use (OpenRouter model slug) |
 | `jevLinter.threshold` | `0.65` | Confidence threshold to trigger warnings (0.0 - 1.0) |
-| `jevLinter.searchStrategy` | `"binarySearch"` | Search algorithm (`binarySearch`: divide & conquer, `slidingWindow`: fixed window) |
 | `jevLinter.minimumBlockSize` | `4` | Minimum block size in lines to stop binary division (down to 1 line) |
 | `jevLinter.overlapRatio` | `0.15` | Boundary overlap ratio for binary search (0.0 - 0.4) |
 | `jevLinter.maxChunkChars` | `60000` | Max characters per request. Larger blocks are divided locally without API calls. |
-| `jevLinter.windowLines` | `30` | Number of lines per scan window (used when `searchStrategy` is `slidingWindow`) |
-| `jevLinter.overlapLines` | `10` | Overlap lines between consecutive windows (sliding window mode) |
 | `jevLinter.concurrency` | `4` | Number of concurrent API requests |
 | `jevLinter.scanOnSave` | `true` | Automatically scan file on save |
 | `jevLinter.supportedLanguages` | `["javascript", "typescript", ...]` | List of language IDs to automatically scan |

@@ -63,12 +63,9 @@ npm run compile
 | `jevLinter.apiEndpoint` | `"https://openrouter.ai/api/v1/systemone"` | API エンドポイント (`/systemone` または `/decisions`) |
 | `jevLinter.model` | `"~typesafe/jev-latest"` | 使用する判定AIモデル |
 | `jevLinter.threshold` | `0.65` | 警告を出す確信度閾値 (0.0 〜 1.0) |
-| `jevLinter.searchStrategy` | `"binarySearch"` | 探索アルゴリズム (`binarySearch`: 二分探索法, `slidingWindow`: 固定ウィンドウ) |
 | `jevLinter.minimumBlockSize` | `4` | 二分探索法で分割を停止する最小行数（1〜20行で調整可能） |
 | `jevLinter.overlapRatio` | `0.15` | 二分探索時の境界オーバーラップ割合（0.0 〜 0.4） |
 | `jevLinter.maxChunkChars` | `60000` | 1回のリクエストの最大文字数（超過時はAPIを呼ばずに二分割） |
-| `jevLinter.windowLines` | `30` | 1回の判定でスキャンする行数（スライディングウィンドウ時） |
-| `jevLinter.overlapLines` | `10` | ウィンドウ間の重複行数（スライディングウィンドウ時） |
 | `jevLinter.concurrency` | `4` | APIの並行リクエスト数 |
 | `jevLinter.scanOnSave` | `true` | ファイル保存時に自動でスキャンを実行するかどうか |
 | `jevLinter.supportedLanguages` | `["javascript", "typescript", ...]` | 自動スキャン対象の言語IDリスト |

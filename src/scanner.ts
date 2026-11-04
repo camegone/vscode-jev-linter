@@ -3,12 +3,6 @@ import { JevClient, DecisionResult, HttpError } from './jevClient';
 import { LinterConfig } from './config';
 import { t } from './i18n';
 
-interface CodeWindow {
-  startLine: number; // 0-based
-  endLine: number;   // 0-based, inclusive
-  content: string;
-}
-
 interface VulnerableRange {
   startLine: number;
   endLine: number;
@@ -33,7 +27,7 @@ export class Scanner {
   }
 
   /**
-   * 単一ドキュメントをスキャンし、Diagnosticの配列を返します。
+   * 単一ドキュメントを二分探索法でスキャンし、Diagnosticの配列を返します。
    */
   async scanDocument(
     document: vscode.TextDocument,
@@ -50,24 +44,12 @@ export class Scanner {
     });
 
     try {
-      let scanResult: ScanResult;
-
-      if (this.config.searchStrategy === 'binarySearch') {
-        scanResult = await this.runBinarySearch(
-          document,
-          totalLines,
-          abortController.signal,
-          token
-        );
-      } else {
-        const ranges = await this.runSlidingWindowSearch(
-          document,
-          totalLines,
-          abortController.signal,
-          token
-        );
-        scanResult = { vulnerableRanges: ranges, oversizedLines: [] };
-      }
+      const scanResult = await this.runBinarySearch(
+        document,
+        totalLines,
+        abortController.signal,
+        token
+      );
 
       if (token?.isCancellationRequested) {
         return [];
@@ -292,152 +274,6 @@ export class Scanner {
 
       pump();
     });
-  }
-
-  /**
-   * 従来のスライディングウィンドウ方式によるスキャン
-   */
-  private async runSlidingWindowSearch(
-    document: vscode.TextDocument,
-    totalLines: number,
-    signal: AbortSignal,
-    token?: vscode.CancellationToken
-  ): Promise<VulnerableRange[]> {
-    const windows = this.createWindows(document, 0, totalLines - 1, this.config.windowLines, this.config.overlapLines);
-    if (windows.length === 0) {
-      return [];
-    }
-
-    const results = await this.runScanWindows(document.fileName, windows, signal, token);
-    const pass1Ranges: VulnerableRange[] = [];
-
-    for (let i = 0; i < windows.length; i++) {
-      const win = windows[i];
-      const res = results[i];
-      if (res && res.vulnerability && res.confidence >= this.config.threshold) {
-        pass1Ranges.push({
-          startLine: win.startLine,
-          endLine: win.endLine,
-          confidence: res.confidence
-        });
-      }
-    }
-
-    return pass1Ranges;
-  }
-
-  /**
-   * 指定範囲の行をスライディングウィンドウで分割（固定ウィンドウ方式用）
-   */
-  private createWindows(
-    document: vscode.TextDocument,
-    rangeStart: number,
-    rangeEnd: number,
-    windowSize: number,
-    overlap: number
-  ): CodeWindow[] {
-    const totalLines = rangeEnd - rangeStart + 1;
-    if (totalLines <= windowSize) {
-      const lines: string[] = [];
-      for (let i = rangeStart; i <= rangeEnd; i++) {
-        lines.push(document.lineAt(i).text);
-      }
-      return [
-        {
-          startLine: rangeStart,
-          endLine: rangeEnd,
-          content: lines.join('\n')
-        }
-      ];
-    }
-
-    const windows: CodeWindow[] = [];
-    const step = Math.max(1, windowSize - overlap);
-
-    for (let start = rangeStart; start <= rangeEnd; start += step) {
-      const end = Math.min(start + windowSize - 1, rangeEnd);
-
-      const lines: string[] = [];
-      for (let i = start; i <= end; i++) {
-        lines.push(document.lineAt(i).text);
-      }
-
-      windows.push({
-        startLine: start,
-        endLine: end,
-        content: lines.join('\n')
-      });
-
-      if (end >= rangeEnd) {
-        break;
-      }
-    }
-
-    return windows;
-  }
-
-  /**
-   * 並行数を制御しながらウィンドウごとの判定を実行
-   */
-  private async runScanWindows(
-    filePath: string,
-    windows: CodeWindow[],
-    signal: AbortSignal,
-    token?: vscode.CancellationToken
-  ): Promise<(DecisionResult | null)[]> {
-    const results: (DecisionResult | null)[] = new Array(windows.length).fill(null);
-    const concurrency = this.config.concurrency;
-    let fatalError: Error | null = null;
-
-    let index = 0;
-    const executeNext = async (): Promise<void> => {
-      while (index < windows.length) {
-        if (token?.isCancellationRequested || signal.aborted || fatalError) {
-          return;
-        }
-
-        const currentIndex = index++;
-        const win = windows[currentIndex];
-
-        if (win.content.trim().length === 0) {
-          results[currentIndex] = { vulnerability: false, confidence: 0 };
-          continue;
-        }
-
-        try {
-          const lineRange = `${win.startLine + 1}-${win.endLine + 1}`;
-          const res = await this.client.scoreSnippet(win.content, filePath, lineRange, signal);
-          results[currentIndex] = res;
-        } catch (err: any) {
-          if (signal.aborted || token?.isCancellationRequested) {
-            return;
-          }
-          console.error(`Jev scan error on lines ${win.startLine + 1}-${win.endLine + 1}:`, err);
-
-          if (err instanceof HttpError) {
-            fatalError = err;
-            return;
-          }
-
-          if (!fatalError) {
-            fatalError = err instanceof Error ? err : new Error(String(err));
-          }
-        }
-      }
-    };
-
-    const workers = Array.from(
-      { length: Math.min(concurrency, windows.length) },
-      () => executeNext()
-    );
-
-    await Promise.all(workers);
-
-    if (fatalError) {
-      throw fatalError;
-    }
-
-    return results;
   }
 
   /**
