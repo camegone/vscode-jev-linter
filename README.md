@@ -1,84 +1,86 @@
 # Jev Security Linter for Visual Studio Code
 
-OpenRouter 上で提供される判断特化型AIモデル（**`typesafe/jev-1.13`** 等）を活用し、ソースコードの保存時（または手動実行時）に潜在的な脆弱性やセキュリティリスクをミリ秒単位で検知し、該当行の下に波線（Squiggly lines）を表示するスタンドアロンな VS Code 拡張機能です。
+**English** | [日本語](README.ja.md)
+
+A standalone VS Code extension that leverages decision-specialized AI models on OpenRouter (such as **`typesafe/jev-1.13`**) to detect potential code vulnerabilities and security risks in milliseconds, displaying squiggly lines directly under offending lines upon saving (or manual invocation).
 
 ---
 
-## 主な特徴
+## Key Features
 
-- ⚡ **超高速・極小コスト**: 一般的な文章生成LLM（GPT-4o, Claude 等）ではなく、確率と判定のみを返す判断モデル（Jev）を採用。1回約 **0.5秒**・**$0.0001 未満（約0.01円）** でのリアルタイムスキャンを実現。
-- 🔌 **MCP不要の完全スタンドアロン**: 外部MCPサーバーを常駐させる必要がなく、OpenRouter REST API を直接呼び出します。
-- 🔍 **純粋二分探索（Divide & Conquer）**: コードを再帰的に分割し、安全な領域を高速に枝刈り（Pruning）しながら `minimumBlockSize`（単一行）までピンポイント特定。
-- 🛡️ **二重のセキュリティ保護 & 視覚的区別**:
-  - **黄色波線（Warning）**: AI（Jev）によって検知された脆弱性・セキュリティリスク。
-  - **赤色波線（Error）**: 単一の行が長大すぎてAIコンテキスト上限を超過した場合（行末への悪意あるコード隠蔽リスクがあるため、切り詰めを行わず手動確認を促すエラーとして表示）。
-- 🌐 **Internationalization (i18n)**: Default language is English, and Japanese is automatically displayed when VS Code display language is set to Japanese (`ja`).
-- ⚙️ **柔軟なカスタマイズ**: 確信度閾値、二分探索ブロックサイズ、オーバーラップ割合、自動スキャン対象言語を VS Code の設定から調整可能。
+- ⚡ **Ultra-Fast & Near-Zero Cost**: Powered by TypeSafe Jev (a System One decision model returning typed probabilities rather than heavy generative LLM prose). Achieves real-time scans in ~**0.5 seconds** at less than **$0.0001 per scan**.
+- 🔌 **Standalone & MCP-Free**: Direct integration with OpenRouter REST API (`/api/v1/systemone`) without requiring any external MCP servers or sidecar processes.
+- 🔍 **Pure Binary Search (Divide & Conquer)**: Recursively subdivides code blocks, pruning clean regions with $O(\log N)$ efficiency down to `minimumBlockSize` (pinpointing down to a single line).
+- 🛡️ **Dual Security Guardrails & Visual Distinction**:
+  - **Yellow Squiggly (Warning)**: Code vulnerabilities detected by Jev AI.
+  - **Red Squiggly (Error)**: Single lines exceeding model context limits (`maxChunkChars`), flagged to prevent evasion/context-smuggling attacks rather than being silently truncated.
+- 🌐 **Internationalization (i18n)**: English by default; automatically switches to Japanese when VS Code's display language is set to Japanese (`ja`).
+- ⚙️ **Fully Configurable**: Customizable confidence threshold, binary search block size, overlap ratio, context limits, and language targets.
 
 ---
 
-## インストールと利用準備
+## Getting Started
 
-### 1. 依存関係のインストールとビルド
+### 1. Install Dependencies & Compile
 
 ```bash
 npm install
 npm run compile
 ```
 
-### 2. デバッグ起動（拡張機能のテスト）
+### 2. Launch in Debug Mode (Extension Host)
 
-1. VS Code で本フォルダを開きます。
-2. `F5` キーを押して「Extension Development Host」ウィンドウを起動します。
+1. Open this project folder in VS Code.
+2. Press `F5` to open the "Extension Development Host" window.
 
-### 3. OpenRouter API キーの設定
+### 3. Configure OpenRouter API Key
 
-1. [OpenRouter](https://openrouter.ai/) で API キーを発行します。
-2. VS Code の設定（`Ctrl + ,` / `Cmd + ,`）を開き、`jevLinter.apiKey` を検索します。
-3. 発行した API キー（`sk-or-v1-...`）を入力します。
-
----
-
-## 使い方
-
-### 自動スキャン（保存時）
-対応言語のファイルを編集して保存（`Ctrl + S` / `Cmd + S`）すると、自動的にスキャンが実行され、脆弱性のある行に警告（黄色い波線）が表示されます。
-
-### 手動スキャン
-- コマンドパレット（`Ctrl + Shift + P` / `Cmd + Shift + P`）を開き、`Jev: 現在のファイルをスキャン` を実行。
-- または、右下のステータスバーにある `$(shield) Jev` をクリック。
-
-### 診断結果のクリア
-- コマンドパレットから `Jev: 診断結果をクリア` を実行。
+1. Obtain an API key from [OpenRouter](https://openrouter.ai/).
+2. Open Settings (`Ctrl + ,` / `Cmd + ,`) and search for `jevLinter.apiKey`.
+3. Enter your API key (`sk-or-v1-...`). Alternatively, you can set the `OPENROUTER_API_KEY` environment variable.
 
 ---
 
-## 設定項目 (`settings.json`)
+## Usage
 
-| 設定項目 | デフォルト値 | 説明 |
+### Automatic Scan on Save
+Edit and save any file in a supported language (`Ctrl + S` / `Cmd + S`). A real-time scan triggers automatically, highlighting any detected vulnerabilities with squiggly lines.
+
+### Manual Scan
+- Open Command Palette (`Ctrl + Shift + P` / `Cmd + Shift + P`) and execute `Jev: Scan Current File`.
+- Or click the `$(shield) Jev` item in the right status bar.
+
+### Clear Diagnostics
+- Open Command Palette and run `Jev: Clear Diagnostics`.
+
+---
+
+## Configuration Settings (`settings.json`)
+
+| Setting | Default | Description |
 |---|---|---|
-| `jevLinter.apiKey` | `""` | OpenRouter API キー (`sk-or-v1-...`) |
-| `jevLinter.apiEndpoint` | `"https://openrouter.ai/api/v1/systemone"` | API エンドポイント (`/systemone` または `/decisions`) |
-| `jevLinter.model` | `"typesafe/jev-1.13"` | 使用する判定AIモデル |
-| `jevLinter.threshold` | `0.65` | 警告を出す確信度閾値 (0.0 〜 1.0) |
-| `jevLinter.searchStrategy` | `"binarySearch"` | 探索アルゴリズム (`binarySearch`: 二分探索法, `slidingWindow`: 固定ウィンドウ) |
-| `jevLinter.minimumBlockSize` | `4` | 二分探索法で分割を停止する最小行数（1〜20行で調整可能） |
-| `jevLinter.overlapRatio` | `0.15` | 二分探索時の境界オーバーラップ割合（0.0 〜 0.4） |
-| `jevLinter.maxChunkChars` | `60000` | 1回のリクエストの最大文字数（超過時はAPIを呼ばずに二分割） |
-| `jevLinter.windowLines` | `30` | 1回の判定でスキャンする行数（スライディングウィンドウ時） |
-| `jevLinter.overlapLines` | `10` | ウィンドウ間の重複行数（スライディングウィンドウ時） |
-| `jevLinter.concurrency` | `4` | APIの並行リクエスト数 |
-| `jevLinter.scanOnSave` | `true` | ファイル保存時に自動でスキャンを実行するかどうか |
-| `jevLinter.supportedLanguages` | `["javascript", "typescript", ...]` | 自動スキャン対象の言語IDリスト |
+| `jevLinter.apiKey` | `""` | OpenRouter API Key (`sk-or-v1-...`) |
+| `jevLinter.apiEndpoint` | `"https://openrouter.ai/api/v1/systemone"` | OpenRouter System One API Endpoint |
+| `jevLinter.model` | `"~typesafe/jev-latest"` | Decision AI model to use (OpenRouter model slug) |
+| `jevLinter.threshold` | `0.65` | Confidence threshold to trigger warnings (0.0 - 1.0) |
+| `jevLinter.searchStrategy` | `"binarySearch"` | Search algorithm (`binarySearch`: divide & conquer, `slidingWindow`: fixed window) |
+| `jevLinter.minimumBlockSize` | `4` | Minimum block size in lines to stop binary division (down to 1 line) |
+| `jevLinter.overlapRatio` | `0.15` | Boundary overlap ratio for binary search (0.0 - 0.4) |
+| `jevLinter.maxChunkChars` | `60000` | Max characters per request. Larger blocks are divided locally without API calls. |
+| `jevLinter.windowLines` | `30` | Number of lines per scan window (used when `searchStrategy` is `slidingWindow`) |
+| `jevLinter.overlapLines` | `10` | Overlap lines between consecutive windows (sliding window mode) |
+| `jevLinter.concurrency` | `4` | Number of concurrent API requests |
+| `jevLinter.scanOnSave` | `true` | Automatically scan file on save |
+| `jevLinter.supportedLanguages` | `["javascript", "typescript", ...]` | List of language IDs to automatically scan |
 
 ---
 
-## VSIX パッケージの作成（配布用）
+## Building VSIX Package
 
-ローカル環境や社内環境にインストールするための `.vsix` パッケージを作成する場合：
+To build a standalone `.vsix` package for local or internal distribution:
 
 ```bash
-npx @vscode/vsce package
+npm run package
 ```
 
-生成された `.vsix` ファイルを、VS Code の拡張機能メニュー（`...`）から「VSIX からのインストール」を選択してインストールできます。
+The generated `.vsix` file can be installed via VS Code Extensions view (`...` menu -> **Install from VSIX...**).
