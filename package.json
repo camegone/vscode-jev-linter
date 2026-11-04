@@ -1,0 +1,161 @@
+{
+  "name": "vscode-jev-linter",
+  "displayName": "Jev Security Linter",
+  "description": "Ultra-fast security vulnerability linter powered by TypeSafe Jev via OpenRouter.",
+  "version": "0.1.0",
+  "publisher": "camegone",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/camegone/vscode-jev-linter"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescriptreact",
+    "onLanguage:python",
+    "onLanguage:go",
+    "onLanguage:php",
+    "onLanguage:ruby",
+    "onLanguage:java",
+    "onLanguage:c",
+    "onLanguage:cpp",
+    "onLanguage:csharp",
+    "onLanguage:rust"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "jevLinter.scanCurrentFile",
+        "title": "Jev: 現在のファイルをスキャン"
+      },
+      {
+        "command": "jevLinter.clearDiagnostics",
+        "title": "Jev: 診断結果をクリア"
+      }
+    ],
+    "configuration": {
+      "title": "Jev Security Linter",
+      "properties": {
+        "jevLinter.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenRouter API Key (sk-or-v1-...)"
+        },
+        "jevLinter.apiEndpoint": {
+          "type": "string",
+          "default": "https://openrouter.ai/api/v1/systemone",
+          "description": "OpenRouter System One API エンドポイント"
+        },
+        "jevLinter.model": {
+          "type": "string",
+          "default": "typesafe/jev-1.13",
+          "description": "使用する判断AIモデル (OpenRouter モデル識別子)"
+        },
+        "jevLinter.threshold": {
+          "type": "number",
+          "default": 0.65,
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "警告を出す確信度閾値 (0.0 〜 1.0)"
+        },
+        "jevLinter.windowLines": {
+          "type": "number",
+          "default": 30,
+          "minimum": 10,
+          "maximum": 200,
+          "description": "1回の判定でスキャンする行数（スライディングウィンドウのサイズ）"
+        },
+        "jevLinter.overlapLines": {
+          "type": "number",
+          "default": 10,
+          "minimum": 0,
+          "maximum": 50,
+          "description": "ウィンドウ間の重複行数（境界付近の問題の見落とし防止）"
+        },
+        "jevLinter.concurrency": {
+          "type": "number",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "API並行リクエスト数"
+        },
+        "jevLinter.searchStrategy": {
+          "type": "string",
+          "enum": ["binarySearch", "slidingWindow"],
+          "default": "binarySearch",
+          "description": "脆弱性探索アルゴリズム (binarySearch: 二分探索法でminimumBlockSizeまで分割特定, slidingWindow: 従来の固定ウィンドウ方式)"
+        },
+        "jevLinter.minimumBlockSize": {
+          "type": "number",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "二分探索法で分割を停止する最小ブロック行数（行単位でのピンポイント特定粒度）"
+        },
+        "jevLinter.overlapRatio": {
+          "type": "number",
+          "default": 0.15,
+          "minimum": 0.0,
+          "maximum": 0.4,
+          "description": "二分探索時の境界オーバーラップ割合（0.0 〜 0.4）。行数 × 割合（小数点以下切り捨て）で動的にオーバーラップ行数を算出します"
+        },
+        "jevLinter.maxChunkChars": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 1000,
+          "maximum": 200000,
+          "description": "モデルに送信可能な最大文字数。これを超える巨大領域は API を呼ばずにローカルで二分割を繰り返します（Jevの66kトークン制限対策）"
+        },
+        "jevLinter.scanOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "ファイル保存時に自動でスキャンを実行する"
+        },
+        "jevLinter.supportedLanguages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "javascript",
+            "typescript",
+            "javascriptreact",
+            "typescriptreact",
+            "python",
+            "go",
+            "php",
+            "ruby",
+            "java",
+            "c",
+            "cpp",
+            "csharp",
+            "rust"
+          ],
+          "description": "自動スキャン対象とする言語IDのリスト"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.24.0",
+    "typescript": "^5.3.3"
+  }
+}
