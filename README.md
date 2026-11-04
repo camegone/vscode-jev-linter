@@ -12,6 +12,7 @@ OpenRouter 上で提供される判断特化型AIモデル（**`typesafe/jev-1.1
 - 🛡️ **二重のセキュリティ保護 & 視覚的区別**:
   - **黄色波線（Warning）**: AI（Jev）によって検知された脆弱性・セキュリティリスク。
   - **赤色波線（Error）**: 単一の行が長大すぎてAIコンテキスト上限を超過した場合（行末への悪意あるコード隠蔽リスクがあるため、切り詰めを行わず手動確認を促すエラーとして表示）。
+- 🌐 **Internationalization (i18n)**: Default language is English, and Japanese is automatically displayed when VS Code display language is set to Japanese (`ja`).
 - ⚙️ **柔軟なカスタマイズ**: 確信度閾値、二分探索ブロックサイズ、オーバーラップ割合、自動スキャン対象言語を VS Code の設定から調整可能。
 
 ---

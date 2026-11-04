@@ -1,0 +1,18 @@
+{
+  "command.scanCurrentFile": "Jev: 現在のファイルをスキャン",
+  "command.clearDiagnostics": "Jev: 診断結果をクリア",
+  "config.title": "Jev Security Linter",
+  "config.apiKey.description": "OpenRouter API Key (sk-or-v1-...)",
+  "config.apiEndpoint.description": "OpenRouter System One API エンドポイント",
+  "config.model.description": "使用する判断AIモデル (OpenRouter モデル識別子)",
+  "config.threshold.description": "警告を出す確信度閾値 (0.0 〜 1.0)",
+  "config.searchStrategy.description": "脆弱性探索アルゴリズム (binarySearch: 二分探索法でminimumBlockSizeまで分割特定, slidingWindow: 従来の固定ウィンドウ方式)",
+  "config.minimumBlockSize.description": "二分探索法で分割を停止する最小ブロック行数（行単位でのピンポイント特定粒度）",
+  "config.overlapRatio.description": "二分探索時の境界オーバーラップ割合（0.0 〜 0.4）。行数 × 割合（小数点以下切り捨て）で動的にオーバーラップ行数を算出します",
+  "config.maxChunkChars.description": "モデルに送信可能な最大文字数。これを超える巨大領域は API を呼ばずにローカルで二分割を繰り返します（Jevの66kトークン制限対策）",
+  "config.windowLines.description": "1回の判定でスキャンする行数（スライディングウィンドウのサイズ）",
+  "config.overlapLines.description": "ウィンドウ間の重複行数（境界付近の問題の見落とし防止）",
+  "config.concurrency.description": "API並行リクエスト数",
+  "config.scanOnSave.description": "ファイル保存時に自動でスキャンを実行する",
+  "config.supportedLanguages.description": "自動スキャン対象とする言語IDのリスト"
+}

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { t } from './i18n';
 
 export interface LinterConfig {
   apiKey: string;
@@ -56,10 +57,10 @@ export function getLinterConfig(): LinterConfig {
 
 export async function promptForApiKey(): Promise<string | undefined> {
   const selection = await vscode.window.showWarningMessage(
-    'Jev Linter: OpenRouter APIキーが設定されていません。設定画面で入力するか環境変数 OPENROUTER_API_KEY を設定してください。',
-    '設定を開く'
+    t('toast.missingApiKey'),
+    t('toast.openSettings')
   );
-  if (selection === '設定を開く') {
+  if (selection === t('toast.openSettings')) {
     await vscode.commands.executeCommand('workbench.action.openSettings', 'jevLinter.apiKey');
   }
   return undefined;

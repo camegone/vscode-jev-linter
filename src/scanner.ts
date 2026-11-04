@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { JevClient, DecisionResult, HttpError } from './jevClient';
 import { LinterConfig } from './config';
+import { t } from './i18n';
 
 interface CodeWindow {
   startLine: number; // 0-based
@@ -83,7 +84,7 @@ export class Scanner {
         const vsRange = new vscode.Range(startPos, endPos);
 
         const confidencePct = Math.round(range.confidence * 100);
-        const message = `Jev: セキュリティリスク・脆弱性の可能性を検出しました (確信度: ${confidencePct}%)`;
+        const message = t('diag.warning', confidencePct);
 
         const diag = new vscode.Diagnostic(
           vsRange,
@@ -102,7 +103,7 @@ export class Scanner {
           new vscode.Position(over.line, 0),
           new vscode.Position(over.line, lineText.length)
         );
-        const message = `Jev: この行は長大すぎるためAI検証をスキップしました (${over.charCount.toLocaleString()}文字)。行末に不正なコードが隠蔽されている可能性があるため、手動で確認してください。`;
+        const message = t('diag.oversizedLine', over.charCount.toLocaleString());
 
         const diag = new vscode.Diagnostic(
           vsRange,

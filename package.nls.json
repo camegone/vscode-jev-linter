@@ -1,0 +1,18 @@
+{
+  "command.scanCurrentFile": "Jev: Scan Current File",
+  "command.clearDiagnostics": "Jev: Clear Diagnostics",
+  "config.title": "Jev Security Linter",
+  "config.apiKey.description": "OpenRouter API Key (sk-or-v1-...)",
+  "config.apiEndpoint.description": "OpenRouter System One API Endpoint",
+  "config.model.description": "Decision AI model to use (OpenRouter model slug)",
+  "config.threshold.description": "Confidence threshold to trigger warnings (0.0 - 1.0)",
+  "config.searchStrategy.description": "Vulnerability search algorithm (binarySearch: divide & conquer down to minimumBlockSize, slidingWindow: fixed-size window scan)",
+  "config.minimumBlockSize.description": "Minimum block size (lines) to stop binary search division (pinpoint line granularity)",
+  "config.overlapRatio.description": "Boundary overlap ratio for binary search (0.0 - 0.4). Overlap lines = floor(lines * ratio)",
+  "config.maxChunkChars.description": "Maximum character length per model request. Larger blocks are divided locally without API calls to stay within context limits.",
+  "config.windowLines.description": "Number of lines per scan window (used when searchStrategy is slidingWindow)",
+  "config.overlapLines.description": "Overlap lines between consecutive windows (used when searchStrategy is slidingWindow)",
+  "config.concurrency.description": "Number of concurrent API requests",
+  "config.scanOnSave.description": "Automatically scan file on save",
+  "config.supportedLanguages.description": "List of language IDs to automatically scan"
+}
