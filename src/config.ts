@@ -24,7 +24,7 @@ export function getLinterConfig(): LinterConfig {
     apiEndpoint: config
       .get<string>('apiEndpoint', 'https://openrouter.ai/api/v1/systemone')
       .trim(),
-    model: config.get<string>('model', 'typesafe/jev-1.13').trim(),
+    model: config.get<string>('model', '~typesafe/jev-latest').trim(),
     threshold: config.get<number>('threshold', 0.65),
     minimumBlockSize: Math.max(1, config.get<number>('minimumBlockSize', 4)),
     overlapRatio: Math.min(0.4, Math.max(0.0, config.get<number>('overlapRatio', 0.15))),

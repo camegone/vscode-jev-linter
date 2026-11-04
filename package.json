@@ -59,7 +59,7 @@
         },
         "jevLinter.model": {
           "type": "string",
-          "default": "typesafe/jev-1.13",
+          "default": "~typesafe/jev-latest",
           "description": "%config.model.description%"
         },
         "jevLinter.threshold": {

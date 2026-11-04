@@ -18,7 +18,7 @@ export class HttpError extends Error {
 export class JevClient {
   constructor(
     private apiKey: string,
-    private model: string = 'typesafe/jev-1.13',
+    private model: string = '~typesafe/jev-latest',
     private endpoint: string = 'https://openrouter.ai/api/v1/systemone'
   ) {}
 
