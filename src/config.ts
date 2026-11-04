@@ -27,7 +27,7 @@ export function getLinterConfig(): LinterConfig {
     apiEndpoint: config
       .get<string>('apiEndpoint', 'https://openrouter.ai/api/v1/systemone')
       .trim(),
-    model: config.get<string>('model', 'typesafe/jev-1.13').trim(),
+    model: config.get<string>('model', '~typesafe/jev-latest').trim(),
     threshold: config.get<number>('threshold', 0.65),
     searchStrategy: config.get<'binarySearch' | 'slidingWindow'>('searchStrategy', 'binarySearch'),
     minimumBlockSize: Math.max(1, config.get<number>('minimumBlockSize', 4)),
