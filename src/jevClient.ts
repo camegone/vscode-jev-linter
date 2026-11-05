@@ -3,6 +3,20 @@ export interface DecisionResult {
   confidence: number;
 }
 
+export interface BranchQuestion {
+  id: string;
+  startLine: number; // 0-based
+  endLine: number;   // 0-based, inclusive
+}
+
+export interface BranchResult {
+  id: string;
+  startLine: number;
+  endLine: number;
+  vulnerability: boolean;
+  confidence: number;
+}
+
 export class HttpError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -23,7 +37,7 @@ export class JevClient {
   ) {}
 
   /**
-   * コードスニペットを判定
+   * 単一スニペットの判定（scoreBranches の薄いラッパー）
    */
   async scoreSnippet(
     code: string,
@@ -31,45 +45,55 @@ export class JevClient {
     lineRange: string = '',
     signal?: AbortSignal
   ): Promise<DecisionResult> {
+    const branches: BranchQuestion[] = [{ id: 'b0', startLine: 0, endLine: 0 }];
+    const results = await this.scoreBranches(code, branches, filePath, signal, lineRange);
+    if (results.length > 0) {
+      return {
+        vulnerability: results[0].vulnerability,
+        confidence: results[0].confidence
+      };
+    }
+    return { vulnerability: false, confidence: 0 };
+  }
+
+  /**
+   * 1回のリクエストで複数区間（マルチブランチ）を一括評価
+   */
+  async scoreBranches(
+    codeWithLineNums: string,
+    branches: BranchQuestion[],
+    filePath: string = 'code',
+    signal?: AbortSignal,
+    customLineRange?: string
+  ): Promise<BranchResult[]> {
     if (!this.apiKey) {
       throw new Error('OpenRouter API Key is not configured.');
     }
 
-    // エンドポイントが chat/completions の場合のみ chat API を呼び出し
-    if (this.endpoint.includes('/chat/completions')) {
-      return await this.scoreWithChatCompletions(code, signal);
+    if (branches.length === 0) {
+      return [];
     }
 
-    // デフォルト: System One / Decisions API (/api/v1/systemone または /api/alpha/decisions)
-    return await this.scoreWithSystemOneApi(code, filePath, lineRange, signal);
-  }
+    // 各ブランチに対する noul 質問を構築
+    const questions: Record<string, any> = {};
+    for (const b of branches) {
+      const displayRange = customLineRange || `${b.startLine + 1}-${b.endLine + 1}`;
+      questions[b.id] = {
+        type: 'noul',
+        instructions: `Target: security vulnerabilities, command injections, SQL injections, hardcoded credentials, unsanitized executions\nDo lines ${displayRange} contain vulnerabilities or security risks?`,
+        criteria: {
+          true: `Lines ${displayRange} contain vulnerabilities or security risks`,
+          false: `Lines ${displayRange} are safe`
+        }
+      };
+    }
 
-  /**
-   * OpenRouter System One API (/api/v1/systemone)
-   */
-  private async scoreWithSystemOneApi(
-    code: string,
-    filePath: string,
-    lineRange: string,
-    signal?: AbortSignal
-  ): Promise<DecisionResult> {
     const payload = {
       model: this.model,
-      questions: {
-        vuln: {
-          type: 'noul',
-          instructions:
-            'Target: security vulnerabilities, command injections, SQL injections, hardcoded credentials, unsanitized executions\nIs a security risk or vulnerability located in this code fragment?',
-          criteria: {
-            true: 'This fragment contains a vulnerability, security flaw, injection, or hardcoded credential',
-            false: 'This fragment is safe or unrelated to vulnerabilities'
-          }
-        }
-      },
+      questions,
       state: {
         path: filePath,
-        lines: lineRange,
-        content: code
+        content: codeWithLineNums
       }
     };
 
@@ -91,59 +115,18 @@ export class JevClient {
     }
 
     const data = (await res.json()) as any;
-    const answer = data.answers?.vuln;
-    if (answer) {
-      const prob = typeof answer.noul === 'number' ? answer.noul : 0;
+    const answers = data.answers || {};
+
+    return branches.map((b) => {
+      const ans = answers[b.id];
+      const prob = ans && typeof ans.noul === 'number' ? ans.noul : 0;
       return {
+        id: b.id,
+        startLine: b.startLine,
+        endLine: b.endLine,
         vulnerability: prob >= 0.5,
         confidence: prob
       };
-    }
-
-    return { vulnerability: false, confidence: 0 };
-  }
-
-  /**
-   * 一般チャットモデル用フォールバック
-   */
-  private async scoreWithChatCompletions(code: string, signal?: AbortSignal): Promise<DecisionResult> {
-    const prompt = `Code snippet:\n\`\`\`\n${code}\n\`\`\`\n\nQuestion: Does this code contain security risks or vulnerabilities (e.g. injection, unsanitized exec, leaks)? Respond in JSON: {"vulnerability": boolean, "confidence": float between 0 and 1}`;
-
-    const res = await fetch(this.endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://github.com/camegone/vscode-jev-linter',
-        'X-Title': 'Jev VSCode Linter'
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' }
-      }),
-      signal
     });
-
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '');
-      throw new HttpError(res.status, res.statusText, errBody);
-    }
-
-    const data = (await res.json()) as any;
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) {
-      return { vulnerability: false, confidence: 0 };
-    }
-
-    try {
-      const parsed = JSON.parse(content.trim());
-      return {
-        vulnerability: Boolean(parsed.vulnerability),
-        confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0
-      };
-    } catch {
-      return { vulnerability: false, confidence: 0 };
-    }
   }
 }
