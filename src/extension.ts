@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import { getLinterConfig, promptForApiKey } from './config';
 import { Scanner } from './scanner';
 import { HttpError } from './jevClient';
-import { t } from './i18n';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
 let statusBarItem: vscode.StatusBarItem;
@@ -19,8 +18,7 @@ export function activate(context: vscode.ExtensionContext) {
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   statusBarItem.command = 'jevLinter.scanCurrentFile';
   statusBarItem.text = '$(shield) Jev';
-  statusBarItem.tooltip = t('status.scanningTooltip', '').replace('Jev Linter: ', '');
-  statusBarItem.tooltip = 'Jev Security Linter: Click to scan current file';
+  statusBarItem.tooltip = vscode.l10n.t('Jev Security Linter: Click to scan current file');
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);
 
@@ -55,7 +53,9 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('jevLinter.scanCurrentFile', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
-        vscode.window.showInformationMessage(t('toast.noActiveEditor'));
+        vscode.window.showInformationMessage(
+          vscode.l10n.t('Jev Linter: No active editor opened.')
+        );
         return;
       }
       await runScan(editor.document, true);
@@ -66,7 +66,9 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('jevLinter.clearDiagnostics', () => {
       diagnosticCollection.clear();
-      vscode.window.showInformationMessage(t('toast.diagnosticsCleared'));
+      vscode.window.showInformationMessage(
+        vscode.l10n.t('Jev Linter: All diagnostics cleared.')
+      );
     })
   );
 }
@@ -96,8 +98,11 @@ async function runScan(document: vscode.TextDocument, isManual: boolean) {
   const cts = new vscode.CancellationTokenSource();
   activeScanCancellations.set(uriStr, cts);
 
-  statusBarItem.text = t('status.scanning');
-  statusBarItem.tooltip = t('status.scanningTooltip', document.fileName);
+  statusBarItem.text = vscode.l10n.t('$(sync~spin) Jev: Scanning...');
+  statusBarItem.tooltip = vscode.l10n.t(
+    'Jev Linter: Scanning {0}',
+    document.fileName
+  );
 
   const scanner = new Scanner(config);
 
@@ -111,14 +116,24 @@ async function runScan(document: vscode.TextDocument, isManual: boolean) {
     diagnosticCollection.set(document.uri, diagnostics);
 
     if (diagnostics.length > 0) {
-      statusBarItem.text = t('status.detected', diagnostics.length);
+      statusBarItem.text = vscode.l10n.t(
+        '$(alert) Jev: Vulnerability detected ({0})',
+        diagnostics.length
+      );
       if (isManual) {
-        vscode.window.showWarningMessage(t('toast.detectedWarning', diagnostics.length));
+        vscode.window.showWarningMessage(
+          vscode.l10n.t(
+            'Jev Linter: Detected {0} security risk location(s).',
+            diagnostics.length
+          )
+        );
       }
     } else {
-      statusBarItem.text = t('status.clean');
+      statusBarItem.text = vscode.l10n.t('$(check) Jev: Clean');
       if (isManual) {
-        vscode.window.showInformationMessage(t('toast.cleanInfo'));
+        vscode.window.showInformationMessage(
+          vscode.l10n.t('Jev Linter: No security vulnerabilities found.')
+        );
       }
     }
   } catch (err: any) {
@@ -128,10 +143,15 @@ async function runScan(document: vscode.TextDocument, isManual: boolean) {
       if (err instanceof HttpError) {
         handleHttpError(err, isManual);
       } else {
-        statusBarItem.text = t('status.error');
-        statusBarItem.tooltip = t('toast.scanError', err.message || err);
+        statusBarItem.text = vscode.l10n.t('$(error) Jev: Error');
+        statusBarItem.tooltip = vscode.l10n.t(
+          'Jev Linter scan error: {0}',
+          err.message || err
+        );
         if (isManual) {
-          vscode.window.showErrorMessage(t('toast.scanError', err.message || err));
+          vscode.window.showErrorMessage(
+            vscode.l10n.t('Jev Linter scan error: {0}', err.message || err)
+          );
         }
       }
     }
@@ -141,7 +161,9 @@ async function runScan(document: vscode.TextDocument, isManual: boolean) {
       // 数秒後にステータスバーを通常表示に戻す
       setTimeout(() => {
         statusBarItem.text = '$(shield) Jev';
-        statusBarItem.tooltip = 'Jev Security Linter';
+        statusBarItem.tooltip = vscode.l10n.t(
+          'Jev Security Linter: Click to scan current file'
+        );
       }, 5000);
     }
     cts.dispose();
@@ -149,20 +171,37 @@ async function runScan(document: vscode.TextDocument, isManual: boolean) {
 }
 
 function handleHttpError(err: HttpError, isManual: boolean) {
-  statusBarItem.text = t('status.httpError', err.statusCode);
+  statusBarItem.text = vscode.l10n.t('$(error) Jev: HTTP {0}', err.statusCode);
   statusBarItem.tooltip = `Jev Linter HTTP ${err.statusCode}: ${err.message}`;
 
-  let friendlyMessage = t('toast.httpGeneral', err.statusCode, err.statusText);
+  let friendlyMessage = vscode.l10n.t(
+    'Jev Linter: HTTP {0} ({1})',
+    err.statusCode,
+    err.statusText
+  );
   if (err.statusCode === 401) {
-    friendlyMessage = t('toast.http401');
+    friendlyMessage = vscode.l10n.t(
+      'Jev Linter: HTTP 401 (Unauthorized) - Invalid API key or unauthorized. Please check settings.'
+    );
   } else if (err.statusCode === 402) {
-    friendlyMessage = t('toast.http402');
+    friendlyMessage = vscode.l10n.t(
+      'Jev Linter: HTTP 402 (Payment Required) - Insufficient OpenRouter credit balance.'
+    );
   } else if (err.statusCode === 429) {
-    friendlyMessage = t('toast.http429');
+    friendlyMessage = vscode.l10n.t(
+      'Jev Linter: HTTP 429 (Too Many Requests) - Rate limit exceeded. Please try again later.'
+    );
   } else if (err.statusCode === 400) {
-    friendlyMessage = t('toast.http400', err.responseBody || 'Invalid request format');
+    friendlyMessage = vscode.l10n.t(
+      'Jev Linter: HTTP 400 (Bad Request) - {0}',
+      err.responseBody || 'Invalid request format'
+    );
   } else if (err.statusCode >= 500) {
-    friendlyMessage = t('toast.http5xx', err.statusCode, err.statusText);
+    friendlyMessage = vscode.l10n.t(
+      'Jev Linter: HTTP {0} ({1}) - OpenRouter server error occurred.',
+      err.statusCode,
+      err.statusText
+    );
   }
 
   // 手動実行時は必ず表示。自動スキャン時は同一エラーの連続トーストを10秒抑制

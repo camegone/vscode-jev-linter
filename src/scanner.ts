@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { JevClient, BranchQuestion, BranchResult, HttpError } from './jevClient';
 import { LinterConfig } from './config';
-import { t } from './i18n';
 
 interface VulnerableRange {
   startLine: number;
@@ -66,7 +65,10 @@ export class Scanner {
         const vsRange = new vscode.Range(startPos, endPos);
 
         const confidencePct = Math.round(range.confidence * 100);
-        const message = t('diag.warning', confidencePct);
+        const message = vscode.l10n.t(
+          'Jev: Potential security risk/vulnerability detected (confidence: {0}%)',
+          confidencePct
+        );
 
         const diag = new vscode.Diagnostic(
           vsRange,
@@ -85,7 +87,10 @@ export class Scanner {
           new vscode.Position(over.line, 0),
           new vscode.Position(over.line, lineText.length)
         );
-        const message = t('diag.oversizedLine', over.charCount.toLocaleString());
+        const message = vscode.l10n.t(
+          'Jev: This line is too large for AI verification and was skipped ({0} chars). Malicious code might be concealed at the end; please verify manually.',
+          over.charCount.toLocaleString()
+        );
 
         const diag = new vscode.Diagnostic(
           vsRange,

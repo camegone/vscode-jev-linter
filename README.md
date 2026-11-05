@@ -14,7 +14,7 @@ A standalone VS Code extension that leverages decision-specialized AI models on 
 - 🛡️ **Dual Security Guardrails & Visual Distinction**:
   - **Yellow Squiggly (Warning)**: Code vulnerabilities detected by Jev AI.
   - **Red Squiggly (Error)**: Single lines exceeding model context limits (`maxChunkChars`), flagged to prevent evasion/context-smuggling attacks rather than being silently truncated.
-- 🌐 **Internationalization (i18n)**: English by default; automatically switches to Japanese when VS Code's display language is set to Japanese (`ja`).
+- 🌐 **Standard VS Code Localization (l10n)**: Built using VS Code's official `l10n` API (`l10n/bundle.l10n.*.json` and `package.nls.*.json`). English by default, Japanese included, and easily extensible to any language with simple JSON translation files.
 - ⚙️ **Fully Configurable**: Customizable confidence threshold, binary search block size, overlap ratio, context limits, and language targets.
 
 ---
