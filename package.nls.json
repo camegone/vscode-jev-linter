@@ -18,6 +18,7 @@
   "config.warnUnresolvedBlocks.description": "When enabled, issues warnings for entire parent blocks if a security risk was suspected but could not be pinpointed to individual sub-blocks (e.g. cross-line dependencies).",
   "config.enableCache.description": "Enable in-memory LRU caching of evaluated code blocks to skip redundant API requests upon repeated saves.",
   "config.cacheMaxEntries.description": "Maximum number of code block hash entries to keep in memory.",
+  "config.cacheLocation.description": "Storage location to persist decision cache: 'global' (VS Code user data across projects), 'workspace' (.vscode/.jev-cache.json in project root), or 'memory' (in-memory only)",
   "config.supportedLanguages.description": "List of language IDs to automatically scan",
   "config.includePattern.description": "Regular expression pattern of file paths to include for batch scanning (empty matches all supported language files)",
   "config.excludePattern.description": "Regular expression pattern of file paths to exclude from scanning",

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 export type DiagnosticSeverityType = 'Error' | 'Warning' | 'Information' | 'Hint';
+export type CacheLocationType = 'global' | 'workspace' | 'memory';
 
 export interface LinterRule {
   id: string;
@@ -85,6 +86,7 @@ export interface LinterConfig {
   supportedLanguages: string[];
   enableCache: boolean;
   cacheMaxEntries: number;
+  cacheLocation: CacheLocationType;
   includePattern: string;
   excludePattern: string;
   useGitignore: boolean;
@@ -127,6 +129,7 @@ export function getLinterConfig(): LinterConfig {
     ]),
     enableCache: config.get<boolean>('enableCache', true),
     cacheMaxEntries: Math.max(100, config.get<number>('cacheMaxEntries', 2000)),
+    cacheLocation: config.get<CacheLocationType>('cacheLocation', 'global'),
     includePattern: config.get<string>('includePattern', '').trim(),
     excludePattern: config
       .get<string>('excludePattern', 'node_modules|\\.git|dist|out|build|vendor')

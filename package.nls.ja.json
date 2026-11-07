@@ -18,6 +18,7 @@
   "config.warnUnresolvedBlocks.description": "有効にすると、セキュリティリスクが疑われたものの個別の子ブロックに絞り込めなかった親ブロック全体に対しても警告を発行します（複数行にまたがる依存関係など）。",
   "config.enableCache.description": "コードブロックの判定結果をメモリ内LRUキャッシュに保持し、保存時の重複APIリクエストをスキップしてコストとレイテンシを削減します",
   "config.cacheMaxEntries.description": "メモリ内に保持するコードブロック判定キャッシュの最大件数",
+  "config.cacheLocation.description": "判定キャッシュの保存場所: 'global' (プロジェクトを跨いでVS Codeユーザーデータ領域に保存), 'workspace' (プロジェクト内の .vscode/.jev-cache.json に保存), 'memory' (永続化せずメモリ上のみ)",
   "config.supportedLanguages.description": "自動スキャン対象とする言語IDのリスト",
   "config.includePattern.description": "一括スキャンの対象に含めるファイルパスの正規表現（空の場合はすべてのサポート言語ファイルが対象）",
   "config.excludePattern.description": "スキャンから除外するファイルパスの正規表現",

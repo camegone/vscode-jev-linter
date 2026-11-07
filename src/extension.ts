@@ -13,9 +13,26 @@ const activeScanCancellations = new Map<string, vscode.CancellationTokenSource>(
 let lastErrorToastTime = 0;
 let lastErrorCode: number | null = null;
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   diagnosticCollection = vscode.languages.createDiagnosticCollection('jev-security');
   context.subscriptions.push(diagnosticCollection);
+
+  // キャッシュの初期化（ディスク永続化の読み込み）
+  await decisionCache.initialize(context, getLinterConfig());
+
+  // 設定変更時のリスナー
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(async (e) => {
+      if (e.affectsConfiguration('jevLinter.cacheLocation')) {
+        const config = getLinterConfig();
+        await decisionCache.configureLocation(config.cacheLocation);
+      }
+      if (e.affectsConfiguration('jevLinter.cacheMaxEntries')) {
+        const config = getLinterConfig();
+        decisionCache.setMaxEntries(config.cacheMaxEntries);
+      }
+    })
+  );
 
   // ステータスバーアイテムの作成
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -77,8 +94,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   // コマンド: 判定キャッシュをクリア
   context.subscriptions.push(
-    vscode.commands.registerCommand('jevLinter.clearCache', () => {
-      const count = decisionCache.clear();
+    vscode.commands.registerCommand('jevLinter.clearCache', async () => {
+      const count = await decisionCache.clear();
       vscode.window.showInformationMessage(
         vscode.l10n.t('Jev Linter: Cache cleared ({0} entries removed).', count)
       );
@@ -275,7 +292,7 @@ function handleHttpError(err: HttpError, isManual: boolean) {
   }
 }
 
-export function deactivate() {
+export async function deactivate() {
   if (diagnosticCollection) {
     diagnosticCollection.clear();
   }
@@ -284,6 +301,7 @@ export function deactivate() {
     cts.dispose();
   }
   activeScanCancellations.clear();
+  await decisionCache.saveNow();
 }
 
 async function runBatchScan(targetDir: string, progressTitle: string) {

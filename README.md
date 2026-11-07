@@ -10,7 +10,7 @@ A standalone VS Code extension that leverages decision-specialized AI models on 
 
 - ⚡ **Ultra-Fast & Near-Zero Cost**: Powered by TypeSafe Jev (a System One decision model returning typed probabilities rather than heavy generative LLM prose). Achieves real-time scans in ~**0.5 seconds** at less than **$0.0001 per scan**.
 - 🔌 **Standalone & MCP-Free**: Direct integration with OpenRouter REST API (`/api/v1/systemone`) without requiring any external MCP servers or sidecar processes.
-- ⚡ **Intelligent Block Caching**: In-memory LRU cache based on SHA-256 hashing of pure block content. Skips redundant API calls for unchanged code blocks upon re-saving or partial edits, virtually eliminating latency and cost for repetitive saves.
+- ⚡ **Intelligent Block Caching & Persistence**: In-memory LRU cache with configurable disk persistence (global user storage or project-local `.vscode/.jev-cache.json`). Skips redundant API calls for unchanged code blocks upon re-saving or partial edits, virtually eliminating latency and cost for repetitive saves.
 - 🔍 **Multi-Branch N-ary Search**: Subdivides blocks into `maxBranchCount` (default: 8) parallel query ranges evaluated in a single API round-trip, pinpointing vulnerabilities with minimal latency.
 - 🛡️ **Dual Security Guardrails & Visual Distinction**:
   - **Yellow Squiggly (Warning)**: Code vulnerabilities detected by Jev AI.
@@ -177,6 +177,7 @@ You can customize built-in rules (enable/disable, adjust severity, tweak target 
 | `jevLinter.warnUnresolvedBlocks` | `false` | When enabled, issues warnings for entire parent blocks if a security risk was suspected but could not be pinpointed to individual sub-blocks |
 | `jevLinter.enableCache` | `true` | Enable in-memory LRU caching of evaluated code blocks to skip redundant API requests upon repeated saves |
 | `jevLinter.cacheMaxEntries` | `2000` | Maximum number of code block hash entries to keep in memory (100 - 20000) |
+| `jevLinter.cacheLocation` | `"global"` | Where to persist decision cache: `"global"` (VS Code user data across projects), `"workspace"` (`.vscode/.jev-cache.json` in project root), or `"memory"` (in-memory only) |
 | `jevLinter.supportedLanguages` | `["javascript", "typescript", ...]` | List of language IDs to automatically scan |
 | `jevLinter.includePattern` | `""` | Regex pattern of file paths to include for batch scanning (empty matches all supported language files) |
 | `jevLinter.excludePattern` | `"node_modules\|\\.git\|dist\|out\|build\|vendor"` | Regex pattern of file paths to exclude from scanning |
