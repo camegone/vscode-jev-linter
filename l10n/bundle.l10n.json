@@ -15,6 +15,7 @@
   "Open Settings": "Open Settings",
   "Jev Linter: No active editor opened.": "Jev Linter: No active editor opened.",
   "Jev Linter: All diagnostics cleared.": "Jev Linter: All diagnostics cleared.",
+  "Jev Linter: Cache cleared ({0} entries removed).": "Jev Linter: Cache cleared ({0} entries removed).",
   "Jev Linter: Detected {0} security risk location(s).": "Jev Linter: Detected {0} security risk location(s).",
   "Jev Linter: Detected {0} security risk location(s) ({1}).": "Jev Linter: Detected {0} security risk location(s) ({1}).",
   "Jev Linter: No security vulnerabilities found.": "Jev Linter: No security vulnerabilities found.",

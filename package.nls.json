@@ -1,6 +1,7 @@
 {
   "command.scanCurrentFile": "Jev: Scan Current File",
   "command.clearDiagnostics": "Jev: Clear Diagnostics",
+  "command.clearCache": "Jev: Clear Decision Cache",
   "config.title": "Jev Security Linter",
   "config.apiKey.description": "OpenRouter API Key (sk-or-v1-...)",
   "config.apiEndpoint.description": "OpenRouter System One API Endpoint",
@@ -13,5 +14,7 @@
   "config.concurrency.description": "Number of concurrent API requests",
   "config.scanOnSave.description": "Automatically scan file on save",
   "config.warnUnresolvedBlocks.description": "When enabled, issues warnings for entire parent blocks if a security risk was suspected but could not be pinpointed to individual sub-blocks (e.g. cross-line dependencies).",
+  "config.enableCache.description": "Enable in-memory LRU caching of evaluated code blocks to skip redundant API requests upon repeated saves.",
+  "config.cacheMaxEntries.description": "Maximum number of code block hash entries to keep in memory.",
   "config.supportedLanguages.description": "List of language IDs to automatically scan"
 }

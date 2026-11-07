@@ -10,6 +10,7 @@ OpenRouter 上で提供される判断特化型AIモデル（**`typesafe/jev-1.1
 
 - ⚡ **超高速・極小コスト**: 一般的な文章生成LLM（GPT-4o, Claude 等）ではなく、確率と判定のみを返す判断モデル（Jev）を採用。1回約 **0.5秒**・**$0.0001 未満（約0.01円）** でのリアルタイムスキャンを実現。
 - 🔌 **MCP不要の完全スタンドアロン**: 外部MCPサーバーを常駐させる必要がなく、OpenRouter REST API（`/api/v1/systemone`）を直接呼び出します。
+- ⚡ **インテリジェント・ブロックキャッシュ**: 評価済みコードブロック（行番号を除いた生コードのSHA-256）をメモリ内LRUキャッシュで保持。ファイルの再保存や部分編集時に変更のないブロックのAPI問い合わせをスキップし、APIコストとレイテンシを極小化。
 - 🔍 **マルチブランチ N分木探索**: 1回のリクエストで `maxBranchCount`（デフォルト: 8）個のブロック区間を一括評価。1往復の通信で多数の区間を並列判定し、極小レイテンシでピンポイント特定。
 - 🛡️ **二重のセキュリティ保護 & 視覚的区別**:
   - **黄色波線（Warning）**: AI（Jev）によって検知された脆弱性・セキュリティリスク。
@@ -50,8 +51,9 @@ npm run compile
 - コマンドパレット（`Ctrl + Shift + P` / `Cmd + Shift + P`）を開き、`Jev: 現在のファイルをスキャン`（`Jev: Scan Current File`）を実行。
 - または、右下のステータスバーにある `$(shield) Jev` をクリック。
 
-### 診断結果のクリア
-- コマンドパレットから `Jev: 診断結果をクリア`（`Jev: Clear Diagnostics`）を実行。
+### 診断結果・キャッシュのクリア
+- コマンドパレットから `Jev: 診断結果をクリア`（`Jev: Clear Diagnostics`）を実行すると、表示中の波線が消去されます。
+- コマンドパレットから `Jev: 判定キャッシュをクリア`（`Jev: Clear Decision Cache`）を実行すると、メモリ内の判定キャッシュがフラッシュされます。
 
 ---
 
@@ -92,6 +94,8 @@ OpenRouterの決定モデル（System One / Decisions API）では、1回のリ�
 | `jevLinter.concurrency` | `4` | APIの並行リクエスト数 |
 | `jevLinter.scanOnSave` | `true` | ファイル保存時に自動でスキャンを実行するかどうか |
 | `jevLinter.warnUnresolvedBlocks` | `false` | 有効時、特定行に絞り込めなかった親ブロック全体に対しても警告を発行する（複数行にまたがる依存関係の検出用） |
+| `jevLinter.enableCache` | `true` | コードブロックの判定結果をメモリ内LRUキャッシュに保持し、保存時の重複APIリクエストをスキップする |
+| `jevLinter.cacheMaxEntries` | `2000` | メモリ内に保持するコードブロック判定キャッシュの最大件数（100 〜 20000） |
 | `jevLinter.supportedLanguages` | `["javascript", "typescript", ...]` | 自動スキャン対象の言語IDリスト |
 
 ---

@@ -15,6 +15,7 @@
   "Open Settings": "設定を開く",
   "Jev Linter: No active editor opened.": "Jev Linter: 開いているエディタがありません。",
   "Jev Linter: All diagnostics cleared.": "Jev Linter: すべての診断結果をクリアしました。",
+  "Jev Linter: Cache cleared ({0} entries removed).": "Jev Linter: キャッシュをクリアしました（{0} 件削除）。",
   "Jev Linter: Detected {0} security risk location(s).": "Jev Linter: {0} 箇所のセキュリティリスクを検出しました。",
   "Jev Linter: Detected {0} security risk location(s) ({1}).": "Jev Linter: {0} 箇所のセキュリティリスクを検出しました ({1})。",
   "Jev Linter: No security vulnerabilities found.": "Jev Linter: セキュリティ脆弱性は検出されませんでした。",

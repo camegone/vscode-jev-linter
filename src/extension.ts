@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { getLinterConfig, promptForApiKey } from './config';
 import { Scanner } from './scanner';
 import { HttpError } from './jevClient';
+import { decisionCache } from './cache';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
 let statusBarItem: vscode.StatusBarItem;
@@ -68,6 +69,16 @@ export function activate(context: vscode.ExtensionContext) {
       diagnosticCollection.clear();
       vscode.window.showInformationMessage(
         vscode.l10n.t('Jev Linter: All diagnostics cleared.')
+      );
+    })
+  );
+
+  // コマンド: 判定キャッシュをクリア
+  context.subscriptions.push(
+    vscode.commands.registerCommand('jevLinter.clearCache', () => {
+      const count = decisionCache.clear();
+      vscode.window.showInformationMessage(
+        vscode.l10n.t('Jev Linter: Cache cleared ({0} entries removed).', count)
       );
     })
   );

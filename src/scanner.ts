@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { JevClient, BranchQuestion, BranchResult, HttpError } from './jevClient';
 import { LinterConfig } from './config';
+import { decisionCache } from './cache';
 
 interface VulnerableRange {
   startLine: number;
@@ -24,6 +25,9 @@ export class Scanner {
 
   constructor(private config: LinterConfig) {
     this.client = new JevClient(config.apiKey, config.model, config.apiEndpoint);
+    if (config.enableCache) {
+      decisionCache.setMaxEntries(config.cacheMaxEntries);
+    }
   }
 
   /**
@@ -151,6 +155,15 @@ export class Scanner {
       return lines.join('\n');
     };
 
+    // 指定行範囲の純粋なテキスト（行番号なし・キャッシュキー用）を取得
+    const getRangeRawContent = (start: number, end: number): string => {
+      const lines: string[] = [];
+      for (let i = start; i <= end; i++) {
+        lines.push(document.lineAt(i).text);
+      }
+      return lines.join('\n');
+    };
+
     // 指定行範囲の概算文字数を算出
     const getRangeCharCount = (start: number, end: number): number => {
       let chars = 0;
@@ -260,13 +273,48 @@ export class Scanner {
             continue;
           }
 
-          // 3. コンテキスト内に収まっている場合はモデルへ問い合わせ
+          // 3. キャッシュチェック（ブロック全体が過去に安全と判定されている場合は即座に枝刈り）
+          if (this.config.enableCache && item.parentConfidence === undefined) {
+            const rawBlock = getRangeRawContent(item.start, item.end);
+            const cachedBlock = decisionCache.get(this.config.model, rawBlock);
+            if (cachedBlock && !cachedBlock.vulnerability) {
+              // 過去に安全と判定されたブロックなのでAPI問い合わせも分割もスキップ
+              continue;
+            }
+          }
+
+          // 4. コンテキスト内に収まっている場合はモデルへ問い合わせ
           activeWorkers++;
 
           (async () => {
             try {
               // 親ブロックの行数がすでに minimumBlockSize 以下なら単一判定
               if (count <= minBlock) {
+                const rawSnippet = getRangeRawContent(item.start, item.end);
+
+                // キャッシュヒットの確認
+                if (this.config.enableCache) {
+                  const cached = decisionCache.get(this.config.model, rawSnippet);
+                  if (cached) {
+                    if (cached.vulnerability && cached.confidence >= threshold) {
+                      detected.push({
+                        startLine: item.start,
+                        endLine: item.end,
+                        confidence: cached.confidence,
+                        unresolved: false
+                      });
+                    } else if (item.parentConfidence !== undefined && this.config.warnUnresolvedBlocks) {
+                      detected.push({
+                        startLine: item.start,
+                        endLine: item.end,
+                        confidence: item.parentConfidence,
+                        unresolved: true
+                      });
+                    }
+                    return;
+                  }
+                }
+
                 const codeSnippet = getRangeContentWithLineNums(item.start, item.end);
                 const branches: BranchQuestion[] = [{ id: 'b0', startLine: item.start, endLine: item.end }];
                 const results = await this.client.scoreBranches(
@@ -277,57 +325,123 @@ export class Scanner {
                   `${item.start + 1}-${item.end + 1}`
                 );
 
-                if (results.length > 0 && results[0].vulnerability && results[0].confidence >= threshold) {
-                  detected.push({
-                    startLine: item.start,
-                    endLine: item.end,
-                    confidence: results[0].confidence,
-                    unresolved: false
-                  });
-                } else if (item.parentConfidence !== undefined && this.config.warnUnresolvedBlocks) {
-                  detected.push({
-                    startLine: item.start,
-                    endLine: item.end,
-                    confidence: item.parentConfidence,
-                    unresolved: true
-                  });
+                if (results.length > 0) {
+                  const res = results[0];
+                  if (this.config.enableCache) {
+                    decisionCache.set(this.config.model, rawSnippet, {
+                      vulnerability: res.vulnerability,
+                      confidence: res.confidence
+                    });
+                  }
+
+                  if (res.vulnerability && res.confidence >= threshold) {
+                    detected.push({
+                      startLine: item.start,
+                      endLine: item.end,
+                      confidence: res.confidence,
+                      unresolved: false
+                    });
+                  } else if (item.parentConfidence !== undefined && this.config.warnUnresolvedBlocks) {
+                    detected.push({
+                      startLine: item.start,
+                      endLine: item.end,
+                      confidence: item.parentConfidence,
+                      unresolved: true
+                    });
+                  }
                 }
               } else {
-                // 親ブロックを最大 maxBranches 個の子ブランチに分割して 1 回のリクエストで一括判定
+                // 親ブロックを最大 maxBranches 個の子ブランチに分割
                 const k = Math.min(maxBranches, count);
                 const branches = createSubBranches(item.start, item.end, k);
-                const codeSnippet = getRangeContentWithLineNums(item.start, item.end);
 
-                const results = await this.client.scoreBranches(
-                  codeSnippet,
-                  branches,
-                  document.fileName,
-                  signal
-                );
-
+                // 各子ブランチのキャッシュを事前チェックして、未解決のブランチのみAPIに送信する
+                const branchesToQuery: BranchQuestion[] = [];
+                const branchRawMap = new Map<string, string>();
                 let hasVulnerableChild = false;
-                for (const res of results) {
-                  if (res.vulnerability && res.confidence >= threshold) {
-                    hasVulnerableChild = true;
-                    const subLen = res.endLine - res.startLine + 1;
-                    if (subLen <= minBlock) {
-                      // minimumBlockSize に達したため確定
-                      detected.push({
-                        startLine: res.startLine,
-                        endLine: res.endLine,
-                        confidence: res.confidence,
-                        unresolved: false
-                      });
-                    } else {
-                      // さらに絞り込むため次の階層のキューに投入
-                      queue.push({
-                        start: res.startLine,
-                        end: res.endLine,
-                        parentConfidence: res.confidence
-                      });
+
+                for (const b of branches) {
+                  const subRaw = getRangeRawContent(b.startLine, b.endLine);
+                  branchRawMap.set(b.id, subRaw);
+
+                  if (this.config.enableCache) {
+                    const cached = decisionCache.get(this.config.model, subRaw);
+                    if (cached) {
+                      if (cached.vulnerability && cached.confidence >= threshold) {
+                        hasVulnerableChild = true;
+                        const subLen = b.endLine - b.startLine + 1;
+                        if (subLen <= minBlock) {
+                          detected.push({
+                            startLine: b.startLine,
+                            endLine: b.endLine,
+                            confidence: cached.confidence,
+                            unresolved: false
+                          });
+                        } else {
+                          queue.push({
+                            start: b.startLine,
+                            end: b.endLine,
+                            parentConfidence: cached.confidence
+                          });
+                        }
+                      }
+                      // 安全とキャッシュされている場合は問い合わせ不要でスキップ
+                      continue;
                     }
                   }
-                  // vulnerability === false のブランチは安全なので枝刈り（何もしない）
+
+                  branchesToQuery.push(b);
+                }
+
+                // キャッシュ未解決のブランチがある場合のみ API 呼び出し
+                if (branchesToQuery.length > 0) {
+                  const codeSnippet = getRangeContentWithLineNums(item.start, item.end);
+                  const results = await this.client.scoreBranches(
+                    codeSnippet,
+                    branchesToQuery,
+                    document.fileName,
+                    signal
+                  );
+
+                  for (const res of results) {
+                    const subRaw = branchRawMap.get(res.id);
+                    if (subRaw && this.config.enableCache) {
+                      decisionCache.set(this.config.model, subRaw, {
+                        vulnerability: res.vulnerability,
+                        confidence: res.confidence
+                      });
+                    }
+
+                    if (res.vulnerability && res.confidence >= threshold) {
+                      hasVulnerableChild = true;
+                      const subLen = res.endLine - res.startLine + 1;
+                      if (subLen <= minBlock) {
+                        // minimumBlockSize に達したため確定
+                        detected.push({
+                          startLine: res.startLine,
+                          endLine: res.endLine,
+                          confidence: res.confidence,
+                          unresolved: false
+                        });
+                      } else {
+                        // さらに絞り込むため次の階層のキューに投入
+                        queue.push({
+                          start: res.startLine,
+                          end: res.endLine,
+                          parentConfidence: res.confidence
+                        });
+                      }
+                    }
+                  }
+                }
+
+                // 子ブロックがすべて安全だった場合、親ブロック全体も「安全」としてキャッシュ
+                if (this.config.enableCache && !hasVulnerableChild && item.parentConfidence === undefined) {
+                  const parentRaw = getRangeRawContent(item.start, item.end);
+                  decisionCache.set(this.config.model, parentRaw, {
+                    vulnerability: false,
+                    confidence: 0
+                  });
                 }
 
                 // 子ブロックがすべて閾値未満だったが、親ブロックが疑わしいと判定されていた場合

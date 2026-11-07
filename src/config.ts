@@ -13,6 +13,8 @@ export interface LinterConfig {
   scanOnSave: boolean;
   warnUnresolvedBlocks: boolean;
   supportedLanguages: string[];
+  enableCache: boolean;
+  cacheMaxEntries: number;
 }
 
 export function getLinterConfig(): LinterConfig {
@@ -48,7 +50,9 @@ export function getLinterConfig(): LinterConfig {
       'cpp',
       'csharp',
       'rust'
-    ])
+    ]),
+    enableCache: config.get<boolean>('enableCache', true),
+    cacheMaxEntries: Math.max(100, config.get<number>('cacheMaxEntries', 2000))
   };
 }
 
