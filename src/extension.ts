@@ -121,10 +121,21 @@ async function runScan(document: vscode.TextDocument, isManual: boolean) {
         diagnostics.length
       );
       if (isManual) {
+        const lineLocations = diagnostics.map((d) => {
+          const s = d.range.start.line + 1;
+          const e = d.range.end.line + 1;
+          return s === e ? `L${s}` : `L${s}-${e}`;
+        });
+        const summaryStr =
+          lineLocations.length <= 3
+            ? lineLocations.join(', ')
+            : `${lineLocations.slice(0, 3).join(', ')}...`;
+
         vscode.window.showWarningMessage(
           vscode.l10n.t(
-            'Jev Linter: Detected {0} security risk location(s).',
-            diagnostics.length
+            'Jev Linter: Detected {0} security risk location(s) ({1}).',
+            diagnostics.length,
+            summaryStr
           )
         );
       }

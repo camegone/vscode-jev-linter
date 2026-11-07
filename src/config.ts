@@ -11,6 +11,7 @@ export interface LinterConfig {
   maxChunkChars: number;
   concurrency: number;
   scanOnSave: boolean;
+  warnUnresolvedBlocks: boolean;
   supportedLanguages: string[];
 }
 
@@ -32,6 +33,7 @@ export function getLinterConfig(): LinterConfig {
     maxChunkChars: Math.max(1000, config.get<number>('maxChunkChars', 60000)),
     concurrency: Math.max(1, config.get<number>('concurrency', 4)),
     scanOnSave: config.get<boolean>('scanOnSave', true),
+    warnUnresolvedBlocks: config.get<boolean>('warnUnresolvedBlocks', false),
     supportedLanguages: config.get<string[]>('supportedLanguages', [
       'javascript',
       'typescript',

@@ -12,5 +12,6 @@
   "config.maxChunkChars.description": "モデルに送信可能な最大文字数。これを超える巨大領域は API を呼ばずにローカルで二分割を繰り返します（Jevの66kトークン制限対策）",
   "config.concurrency.description": "API並行リクエスト数",
   "config.scanOnSave.description": "ファイル保存時に自動でスキャンを実行する",
+  "config.warnUnresolvedBlocks.description": "有効にすると、セキュリティリスクが疑われたものの個別の子ブロックに絞り込めなかった親ブロック全体に対しても警告を発行します（複数行にまたがる依存関係など）。",
   "config.supportedLanguages.description": "自動スキャン対象とする言語IDのリスト"
 }

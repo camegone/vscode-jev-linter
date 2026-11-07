@@ -91,6 +91,7 @@ On OpenRouter's decision endpoints (System One / Decisions API), batching multip
 | `jevLinter.maxChunkChars` | `60000` | Max characters per request. Larger blocks are divided locally without API calls. |
 | `jevLinter.concurrency` | `4` | Number of concurrent API requests |
 | `jevLinter.scanOnSave` | `true` | Automatically scan file on save |
+| `jevLinter.warnUnresolvedBlocks` | `false` | When enabled, issues warnings for entire parent blocks if a security risk was suspected but could not be pinpointed to individual sub-blocks |
 | `jevLinter.supportedLanguages` | `["javascript", "typescript", ...]` | List of language IDs to automatically scan |
 
 ---

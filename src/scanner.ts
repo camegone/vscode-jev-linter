@@ -6,6 +6,7 @@ interface VulnerableRange {
   startLine: number;
   endLine: number;
   confidence: number;
+  unresolved?: boolean;
 }
 
 interface OversizedLine {
@@ -64,11 +65,23 @@ export class Scanner {
         const endPos = new vscode.Position(range.endLine, endLineText.length);
         const vsRange = new vscode.Range(startPos, endPos);
 
+        const lineLoc =
+          range.startLine === range.endLine
+            ? `L${range.startLine + 1}`
+            : `L${range.startLine + 1}-${range.endLine + 1}`;
+
         const confidencePct = Math.round(range.confidence * 100);
-        const message = vscode.l10n.t(
-          'Jev: Potential security risk/vulnerability detected (confidence: {0}%)',
-          confidencePct
-        );
+        const message = range.unresolved
+          ? vscode.l10n.t(
+              'Jev: Potential security risk suspected across {0}, but could not be pinpointed to specific lines (confidence: {1}%)',
+              lineLoc,
+              confidencePct
+            )
+          : vscode.l10n.t(
+              'Jev: Potential security risk/vulnerability detected at {0} (confidence: {1}%)',
+              lineLoc,
+              confidencePct
+            );
 
         const diag = new vscode.Diagnostic(
           vsRange,
@@ -191,8 +204,14 @@ export class Scanner {
       return branches;
     };
 
+    interface QueueItem {
+      start: number;
+      end: number;
+      parentConfidence?: number;
+    }
+
     // 探索キューの初期化: 最初はファイル全体を1つのブロックとして投入
-    const queue: { start: number; end: number }[] = [{ start: 0, end: totalLines - 1 }];
+    const queue: QueueItem[] = [{ start: 0, end: totalLines - 1, parentConfidence: undefined }];
     let activeWorkers = 0;
 
     return new Promise<ScanResult>((resolve, reject) => {
@@ -224,7 +243,11 @@ export class Scanner {
           if (approxChars > maxChars && count > 1) {
             const children = splitBlockTwo(item.start, item.end);
             for (const child of children) {
-              queue.push(child);
+              queue.push({
+                start: child.start,
+                end: child.end,
+                parentConfidence: item.parentConfidence
+              });
             }
             continue;
           }
@@ -258,7 +281,15 @@ export class Scanner {
                   detected.push({
                     startLine: item.start,
                     endLine: item.end,
-                    confidence: results[0].confidence
+                    confidence: results[0].confidence,
+                    unresolved: false
+                  });
+                } else if (item.parentConfidence !== undefined && this.config.warnUnresolvedBlocks) {
+                  detected.push({
+                    startLine: item.start,
+                    endLine: item.end,
+                    confidence: item.parentConfidence,
+                    unresolved: true
                   });
                 }
               } else {
@@ -274,25 +305,43 @@ export class Scanner {
                   signal
                 );
 
+                let hasVulnerableChild = false;
                 for (const res of results) {
                   if (res.vulnerability && res.confidence >= threshold) {
+                    hasVulnerableChild = true;
                     const subLen = res.endLine - res.startLine + 1;
                     if (subLen <= minBlock) {
                       // minimumBlockSize に達したため確定
                       detected.push({
                         startLine: res.startLine,
                         endLine: res.endLine,
-                        confidence: res.confidence
+                        confidence: res.confidence,
+                        unresolved: false
                       });
                     } else {
                       // さらに絞り込むため次の階層のキューに投入
                       queue.push({
                         start: res.startLine,
-                        end: res.endLine
+                        end: res.endLine,
+                        parentConfidence: res.confidence
                       });
                     }
                   }
                   // vulnerability === false のブランチは安全なので枝刈り（何もしない）
+                }
+
+                // 子ブロックがすべて閾値未満だったが、親ブロックが疑わしいと判定されていた場合
+                if (
+                  !hasVulnerableChild &&
+                  item.parentConfidence !== undefined &&
+                  this.config.warnUnresolvedBlocks
+                ) {
+                  detected.push({
+                    startLine: item.start,
+                    endLine: item.end,
+                    confidence: item.parentConfidence,
+                    unresolved: true
+                  });
                 }
               }
             } catch (err: any) {
@@ -331,7 +380,10 @@ export class Scanner {
     for (let i = 1; i < sorted.length; i++) {
       const next = sorted[i];
 
-      if (next.startLine <= current.endLine + 1) {
+      if (
+        next.startLine <= current.endLine + 1 &&
+        (current.unresolved ?? false) === (next.unresolved ?? false)
+      ) {
         current.endLine = Math.max(current.endLine, next.endLine);
         current.confidence = Math.max(current.confidence, next.confidence);
       } else {

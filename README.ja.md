@@ -91,6 +91,7 @@ OpenRouterの決定モデル（System One / Decisions API）では、1回のリ�
 | `jevLinter.maxChunkChars` | `60000` | 1回のリクエストの最大文字数（超過時はAPIを呼ばずに二分割） |
 | `jevLinter.concurrency` | `4` | APIの並行リクエスト数 |
 | `jevLinter.scanOnSave` | `true` | ファイル保存時に自動でスキャンを実行するかどうか |
+| `jevLinter.warnUnresolvedBlocks` | `false` | 有効時、特定行に絞り込めなかった親ブロック全体に対しても警告を発行する（複数行にまたがる依存関係の検出用） |
 | `jevLinter.supportedLanguages` | `["javascript", "typescript", ...]` | 自動スキャン対象の言語IDリスト |
 
 ---

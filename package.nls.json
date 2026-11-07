@@ -12,5 +12,6 @@
   "config.maxChunkChars.description": "Maximum character length per model request. Larger blocks are divided locally without API calls to stay within context limits.",
   "config.concurrency.description": "Number of concurrent API requests",
   "config.scanOnSave.description": "Automatically scan file on save",
+  "config.warnUnresolvedBlocks.description": "When enabled, issues warnings for entire parent blocks if a security risk was suspected but could not be pinpointed to individual sub-blocks (e.g. cross-line dependencies).",
   "config.supportedLanguages.description": "List of language IDs to automatically scan"
 }
