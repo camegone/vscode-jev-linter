@@ -2,6 +2,8 @@
   "command.scanCurrentFile": "Jev: 現在のファイルをスキャン",
   "command.clearDiagnostics": "Jev: 診断結果をクリア",
   "command.clearCache": "Jev: 判定キャッシュをクリア",
+  "command.scanWorkspace": "Jev: ワークスペース全体をスキャン",
+  "command.scanCurrentFolder": "Jev: 現在のフォルダ内をスキャン",
   "config.title": "Jev Security Linter",
   "config.apiKey.description": "OpenRouter API Key (sk-or-v1-...)",
   "config.apiEndpoint.description": "OpenRouter System One API エンドポイント",
@@ -16,5 +18,8 @@
   "config.warnUnresolvedBlocks.description": "有効にすると、セキュリティリスクが疑われたものの個別の子ブロックに絞り込めなかった親ブロック全体に対しても警告を発行します（複数行にまたがる依存関係など）。",
   "config.enableCache.description": "コードブロックの判定結果をメモリ内LRUキャッシュに保持し、保存時の重複APIリクエストをスキップしてコストとレイテンシを削減します",
   "config.cacheMaxEntries.description": "メモリ内に保持するコードブロック判定キャッシュの最大件数",
-  "config.supportedLanguages.description": "自動スキャン対象とする言語IDのリスト"
+  "config.supportedLanguages.description": "自動スキャン対象とする言語IDのリスト",
+  "config.includePattern.description": "一括スキャンの対象に含めるファイルパスの正規表現（空の場合はすべてのサポート言語ファイルが対象）",
+  "config.excludePattern.description": "スキャンから除外するファイルパスの正規表現",
+  "config.useGitignore.description": "スキャン対象ファイルを収集する際に .gitignore の除外ルールを適用するかどうか"
 }

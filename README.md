@@ -47,9 +47,10 @@ npm run compile
 ### Automatic Scan on Save
 Edit and save any file in a supported language (`Ctrl + S` / `Cmd + S`). A real-time scan triggers automatically, highlighting any detected vulnerabilities with squiggly lines.
 
-### Manual Scan
-- Open Command Palette (`Ctrl + Shift + P` / `Cmd + Shift + P`) and execute `Jev: Scan Current File`.
-- Or click the `$(shield) Jev` item in the right status bar.
+### Manual & Batch Scans
+- **Scan Current File**: Open Command Palette (`Ctrl + Shift + P` / `Cmd + Shift + P`) and execute `Jev: Scan Current File` (or click `$(shield) Jev` in status bar).
+- **Scan Workspace**: Execute `Jev: Scan Entire Workspace` to audit all project files with progress tracking.
+- **Scan Current Folder**: Execute `Jev: Scan Current Folder` to audit only files inside the directory of the active editor.
 
 ### Clear Diagnostics & Cache
 - Open Command Palette and run `Jev: Clear Diagnostics` to remove squiggly lines.
@@ -97,6 +98,9 @@ On OpenRouter's decision endpoints (System One / Decisions API), batching multip
 | `jevLinter.enableCache` | `true` | Enable in-memory LRU caching of evaluated code blocks to skip redundant API requests upon repeated saves |
 | `jevLinter.cacheMaxEntries` | `2000` | Maximum number of code block hash entries to keep in memory (100 - 20000) |
 | `jevLinter.supportedLanguages` | `["javascript", "typescript", ...]` | List of language IDs to automatically scan |
+| `jevLinter.includePattern` | `""` | Regex pattern of file paths to include for batch scanning (empty matches all supported language files) |
+| `jevLinter.excludePattern` | `"node_modules\|\\.git\|dist\|out\|build\|vendor"` | Regex pattern of file paths to exclude from scanning |
+| `jevLinter.useGitignore` | `true` | Whether to respect `.gitignore` exclusion rules when collecting files to scan |
 
 ---
 

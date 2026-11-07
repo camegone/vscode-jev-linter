@@ -2,7 +2,7 @@
   "name": "vscode-jev-linter",
   "displayName": "Jev Security Linter",
   "description": "Ultra-fast security vulnerability linter powered by TypeSafe Jev via OpenRouter.",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "publisher": "camegone",
   "license": "MIT",
   "repository": {
@@ -47,6 +47,14 @@
       {
         "command": "jevLinter.clearCache",
         "title": "%command.clearCache%"
+      },
+      {
+        "command": "jevLinter.scanWorkspace",
+        "title": "%command.scanWorkspace%"
+      },
+      {
+        "command": "jevLinter.scanCurrentFolder",
+        "title": "%command.scanCurrentFolder%"
       }
     ],
     "configuration": {
@@ -151,6 +159,21 @@
             "rust"
           ],
           "description": "%config.supportedLanguages.description%"
+        },
+        "jevLinter.includePattern": {
+          "type": "string",
+          "default": "",
+          "description": "%config.includePattern.description%"
+        },
+        "jevLinter.excludePattern": {
+          "type": "string",
+          "default": "node_modules|\\.git|dist|out|build|vendor",
+          "description": "%config.excludePattern.description%"
+        },
+        "jevLinter.useGitignore": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.useGitignore.description%"
         }
       }
     }

@@ -15,6 +15,9 @@ export interface LinterConfig {
   supportedLanguages: string[];
   enableCache: boolean;
   cacheMaxEntries: number;
+  includePattern: string;
+  excludePattern: string;
+  useGitignore: boolean;
 }
 
 export function getLinterConfig(): LinterConfig {
@@ -52,7 +55,12 @@ export function getLinterConfig(): LinterConfig {
       'rust'
     ]),
     enableCache: config.get<boolean>('enableCache', true),
-    cacheMaxEntries: Math.max(100, config.get<number>('cacheMaxEntries', 2000))
+    cacheMaxEntries: Math.max(100, config.get<number>('cacheMaxEntries', 2000)),
+    includePattern: config.get<string>('includePattern', '').trim(),
+    excludePattern: config
+      .get<string>('excludePattern', 'node_modules|\\.git|dist|out|build|vendor')
+      .trim(),
+    useGitignore: config.get<boolean>('useGitignore', true)
   };
 }
 

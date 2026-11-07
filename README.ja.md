@@ -47,9 +47,10 @@ npm run compile
 ### 自動スキャン（保存時）
 対応言語のファイルを編集して保存（`Ctrl + S` / `Cmd + S`）すると、自動的にスキャンが実行され、脆弱性のある行に警告（黄色い波線）が表示されます。
 
-### 手動スキャン
-- コマンドパレット（`Ctrl + Shift + P` / `Cmd + Shift + P`）を開き、`Jev: 現在のファイルをスキャン`（`Jev: Scan Current File`）を実行。
-- または、右下のステータスバーにある `$(shield) Jev` をクリック。
+### 手動スキャン & 一括監査
+- **現在のファイルをスキャン**: コマンドパレット（`Ctrl + Shift + P` / `Cmd + Shift + P`）から `Jev: 現在のファイルをスキャン`（またはステータスバーの `$(shield) Jev` をクリック）。
+- **ワークスペース全体をスキャン**: コマンドパレットから `Jev: ワークスペース全体をスキャン` を実行（プログレスバー付きでプロジェクト全体を巡回スキャン）。
+- **現在のフォルダ内をスキャン**: コマンドパレットから `Jev: 現在のフォルダ内をスキャン` を実行（開いているファイルと同じディレクトリ内のみを検査）。
 
 ### 診断結果・キャッシュのクリア
 - コマンドパレットから `Jev: 診断結果をクリア`（`Jev: Clear Diagnostics`）を実行すると、表示中の波線が消去されます。
@@ -97,6 +98,9 @@ OpenRouterの決定モデル（System One / Decisions API）では、1回のリ�
 | `jevLinter.enableCache` | `true` | コードブロックの判定結果をメモリ内LRUキャッシュに保持し、保存時の重複APIリクエストをスキップする |
 | `jevLinter.cacheMaxEntries` | `2000` | メモリ内に保持するコードブロック判定キャッシュの最大件数（100 〜 20000） |
 | `jevLinter.supportedLanguages` | `["javascript", "typescript", ...]` | 自動スキャン対象の言語IDリスト |
+| `jevLinter.includePattern` | `""` | 一括スキャン対象に含めるファイルパスの正規表現（空の場合はすべてのサポート言語ファイルが対象） |
+| `jevLinter.excludePattern` | `"node_modules\|\\.git\|dist\|out\|build\|vendor"` | スキャンから除外するファイルパスの正規表現 |
+| `jevLinter.useGitignore` | `true` | スキャン対象収集時に `.gitignore` の除外ルールを適用するかどうか |
 
 ---
 

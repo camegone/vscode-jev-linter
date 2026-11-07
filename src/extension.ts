@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { getLinterConfig, promptForApiKey } from './config';
 import { Scanner } from './scanner';
 import { HttpError } from './jevClient';
 import { decisionCache } from './cache';
+import { collectFilesToScan } from './fileCollector';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
 let statusBarItem: vscode.StatusBarItem;
@@ -79,6 +81,44 @@ export function activate(context: vscode.ExtensionContext) {
       const count = decisionCache.clear();
       vscode.window.showInformationMessage(
         vscode.l10n.t('Jev Linter: Cache cleared ({0} entries removed).', count)
+      );
+    })
+  );
+
+  // コマンド: ワークスペース全体をスキャン
+  context.subscriptions.push(
+    vscode.commands.registerCommand('jevLinter.scanWorkspace', async () => {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showInformationMessage(
+          vscode.l10n.t('Jev Linter: No workspace folder open.')
+        );
+        return;
+      }
+      for (const folder of workspaceFolders) {
+        await runBatchScan(
+          folder.uri.fsPath,
+          vscode.l10n.t('Jev: Scanning workspace ({0})...', folder.name)
+        );
+      }
+    })
+  );
+
+  // コマンド: 現在開いているファイルのフォルダ内をスキャン
+  context.subscriptions.push(
+    vscode.commands.registerCommand('jevLinter.scanCurrentFolder', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showInformationMessage(
+          vscode.l10n.t('Jev Linter: No active editor opened.')
+        );
+        return;
+      }
+      const dirPath = path.dirname(editor.document.uri.fsPath);
+      const folderName = path.basename(dirPath);
+      await runBatchScan(
+        dirPath,
+        vscode.l10n.t('Jev: Scanning folder ({0})...', folderName)
       );
     })
   );
@@ -244,4 +284,127 @@ export function deactivate() {
     cts.dispose();
   }
   activeScanCancellations.clear();
+}
+
+async function runBatchScan(targetDir: string, progressTitle: string) {
+  const config = getLinterConfig();
+
+  // APIキー未設定のチェック
+  if (!config.apiKey) {
+    await promptForApiKey();
+    return;
+  }
+
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: progressTitle,
+      cancellable: true
+    },
+    async (progress, token) => {
+      progress.report({ message: vscode.l10n.t('Collecting files to scan...') });
+
+      const files = await collectFilesToScan(targetDir, config, token);
+
+      if (token.isCancellationRequested) {
+        return;
+      }
+
+      if (files.length === 0) {
+        vscode.window.showInformationMessage(
+          vscode.l10n.t('Jev Linter: No target files found to scan in {0}.', targetDir)
+        );
+        return;
+      }
+
+      const scanner = new Scanner(config);
+      let scannedCount = 0;
+      let vulnerableFilesCount = 0;
+      let totalRisks = 0;
+
+      statusBarItem.text = vscode.l10n.t('$(sync~spin) Jev: (0/{0})', files.length);
+
+      for (let i = 0; i < files.length; i++) {
+        if (token.isCancellationRequested) {
+          break;
+        }
+
+        const filePath = files[i];
+        const relPath = path.relative(targetDir, filePath);
+        progress.report({
+          message: `(${i + 1}/${files.length}) ${relPath}`,
+          increment: 100 / files.length
+        });
+
+        statusBarItem.text = vscode.l10n.t(
+          '$(sync~spin) Jev: ({0}/{1})',
+          i + 1,
+          files.length
+        );
+
+        try {
+          const uri = vscode.Uri.file(filePath);
+          const document = await vscode.workspace.openTextDocument(uri);
+          const diagnostics = await scanner.scanDocument(document, token);
+
+          if (token.isCancellationRequested) {
+            break;
+          }
+
+          diagnosticCollection.set(uri, diagnostics);
+          scannedCount++;
+
+          if (diagnostics.length > 0) {
+            vulnerableFilesCount++;
+            totalRisks += diagnostics.length;
+          }
+        } catch (err: any) {
+          console.error(`Jev Linter batch scan error on ${filePath}:`, err);
+          if (err instanceof HttpError) {
+            handleHttpError(err, true);
+            break;
+          }
+        }
+      }
+
+      if (token.isCancellationRequested) {
+        vscode.window.showWarningMessage(
+          vscode.l10n.t(
+            'Jev Linter: Scan cancelled ({0}/{1} files completed).',
+            scannedCount,
+            files.length
+          )
+        );
+        statusBarItem.text = '$(shield) Jev';
+        return;
+      }
+
+      if (totalRisks > 0) {
+        statusBarItem.text = vscode.l10n.t(
+          '$(alert) Jev: Vulnerability detected ({0})',
+          totalRisks
+        );
+        vscode.window.showWarningMessage(
+          vscode.l10n.t(
+            'Jev Linter: Scan complete. Found {0} security risk(s) across {1} file(s) ({2} scanned).',
+            totalRisks,
+            vulnerableFilesCount,
+            scannedCount
+          )
+        );
+      } else {
+        statusBarItem.text = vscode.l10n.t('$(check) Jev: Clean');
+        vscode.window.showInformationMessage(
+          vscode.l10n.t(
+            'Jev Linter: Scan complete. All {0} file(s) are clean.',
+            scannedCount
+          )
+        );
+      }
+
+      setTimeout(() => {
+        statusBarItem.text = '$(shield) Jev';
+      }, 5000);
+    }
+  );
 }
