@@ -80,6 +80,86 @@ On OpenRouter's decision endpoints (System One / Decisions API), batching multip
 
 ---
 
+## 🎯 Multi-Category Inspection & Custom Rules
+
+Beyond security vulnerability detection, Jev Linter supports multi-category inspections including spelling errors, project policy violations, dead code, and legacy idioms.
+
+Thanks to OpenRouter's System One API (multi-question batching), **evaluating multiple active categories does not increase HTTP round-trips**—all enabled rules are evaluated concurrently in a single request.
+
+### Built-in Rule Categories
+
+| Category ID | Name | Default | Default Severity | Inspection Target |
+|:---|:---|:---:|:---:|:---|
+| **`security`** | **Security Vulnerabilities** | **Enabled** | `Warning` (Yellow) | Command / SQL injections, hardcoded secrets, XSS, unsanitized executions |
+| **`typo`** | **Typos & Spelling** | Disabled | `Information` (Blue) | Spelling mistakes, obvious typos in comments, string literals, identifiers |
+| **`policy`** | **Style & Policy Violations** | Disabled | `Warning` (Yellow) | Leftover debug prints/`console.log`, empty catch blocks swallowing errors |
+| **`redundancy`** | **Redundancy & Dead Code** | Disabled | `Information` (Blue) | Unreachable statements, redundant assignments, reinvented built-ins |
+| **`legacy`** | **Legacy & Deprecated Practices** | Disabled | `Information` (Blue) | Deprecated APIs, legacy idioms (e.g. `var`, callback hell vs async/await) |
+| **`performance`** | **Performance & Resource Leaks** | Disabled | `Warning` (Yellow) | N+1 queries in loops, unclosed file/connection resources, costly loop allocations |
+| **`robustness`** | **Robustness & Edge Cases** | Disabled | `Warning` (Yellow) | Unchecked null/undefined references, missing I/O exception handling |
+
+### Customizing & Adding Rules (`settings.json`)
+
+You can customize built-in rules (enable/disable, adjust severity, tweak target prompts) or define brand new custom rules in your `settings.json`:
+
+```jsonc
+{
+  "jevLinter.rules": [
+    // 1. Keep default security rule enabled
+    {
+      "id": "security",
+      "name": "Security Vulnerabilities",
+      "enabled": true,
+      "severity": "Warning",
+      "target": "security vulnerabilities, command injections, SQL injections, hardcoded credentials, unsanitized executions",
+      "message": "Jev [Security]: Potential security risk/vulnerability detected"
+    },
+    // 2. Enable typo detection with Information squiggly (blue)
+    {
+      "id": "typo",
+      "name": "Typos & Spelling",
+      "enabled": true,
+      "severity": "Information",
+      "target": "spelling mistakes, obvious typos in comments, string literals, error messages, or identifiers",
+      "message": "Jev [Typo]: Potential typo or spelling mistake detected"
+    },
+    // 3. Enable leftover debug prints check
+    {
+      "id": "policy",
+      "name": "Style & Policy Violations",
+      "enabled": true,
+      "severity": "Warning",
+      "target": "policy violations, leftover debug prints/console.log, empty catch blocks swallowing errors, hardcoded environment URLs",
+      "message": "Jev [Policy]: Potential policy violation or leftover debug code detected"
+    },
+    // 4. Add your own project-specific custom rule!
+    {
+      "id": "internal-standards",
+      "name": "Internal Project Standards",
+      "enabled": true,
+      "severity": "Warning",
+      "target": "use of forbidden Axios library (use native fetch instead), direct localStorage access, or synchronous file operations",
+      "message": "Jev [Standards]: Project standard violation detected (e.g. forbidden library or sync I/O)"
+    }
+  ]
+}
+```
+
+#### Rule Properties
+
+- **`id`** *(string, required)*: Unique identifier for the rule.
+- **`name`** *(string, required)*: Category display name shown as the Diagnostic source (e.g. `Jev (Typos & Spelling)`).
+- **`enabled`** *(boolean, default: true)*: Toggles this rule on or off.
+- **`severity`** *(string, default: "Warning")*: Squiggly line color/severity in editor:
+  - `"Error"`: Red squiggly
+  - `"Warning"`: Yellow squiggly
+  - `"Information"`: Blue squiggly
+  - `"Hint"`: Faint gray / dot underline
+- **`target`** *(string, required)*: The English description passed to Jev AI describing what patterns/issues constitute a violation.
+- **`message`** *(string, required)*: The prefix text displayed in the editor hover tooltip when a violation is detected.
+
+---
+
 ## Configuration Settings (`settings.json`)
 
 | Setting | Default | Description |
@@ -101,6 +181,7 @@ On OpenRouter's decision endpoints (System One / Decisions API), batching multip
 | `jevLinter.includePattern` | `""` | Regex pattern of file paths to include for batch scanning (empty matches all supported language files) |
 | `jevLinter.excludePattern` | `"node_modules\|\\.git\|dist\|out\|build\|vendor"` | Regex pattern of file paths to exclude from scanning |
 | `jevLinter.useGitignore` | `true` | Whether to respect `.gitignore` exclusion rules when collecting files to scan |
+| `jevLinter.rules` | `[...]` | Multi-category inspection rules with custom prompts, severities (Warning/Information), and target patterns |
 
 ---
 

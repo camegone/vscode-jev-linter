@@ -1,7 +1,8 @@
 import * as crypto from 'crypto';
 
 export interface CacheEntry {
-  vulnerability: boolean;
+  detected: boolean;
+  vulnerability: boolean; // 后方互換
   confidence: number;
   timestamp: number;
 }
@@ -19,13 +20,13 @@ export class DecisionCache {
     this.trim();
   }
 
-  private computeKey(model: string, code: string): string {
+  private computeKey(model: string, ruleId: string, code: string): string {
     const hash = crypto.createHash('sha256').update(code).digest('hex');
-    return `${model}:${hash}`;
+    return `${model}:${ruleId}:${hash}`;
   }
 
-  get(model: string, code: string): CacheEntry | undefined {
-    const key = this.computeKey(model, code);
+  get(model: string, ruleId: string, code: string): CacheEntry | undefined {
+    const key = this.computeKey(model, ruleId, code);
     const entry = this.cache.get(key);
     if (entry) {
       // LRU: アクセスされたエントリを最新に移動
@@ -38,15 +39,17 @@ export class DecisionCache {
 
   set(
     model: string,
+    ruleId: string,
     code: string,
-    result: { vulnerability: boolean; confidence: number }
+    result: { detected: boolean; confidence: number }
   ): void {
-    const key = this.computeKey(model, code);
+    const key = this.computeKey(model, ruleId, code);
     if (this.cache.has(key)) {
       this.cache.delete(key);
     }
     this.cache.set(key, {
-      vulnerability: result.vulnerability,
+      detected: result.detected,
+      vulnerability: result.detected,
       confidence: result.confidence,
       timestamp: Date.now()
     });

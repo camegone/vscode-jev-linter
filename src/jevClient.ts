@@ -1,3 +1,5 @@
+import { LinterRule, DEFAULT_RULES } from './config';
+
 export interface DecisionResult {
   vulnerability: boolean;
   confidence: number;
@@ -9,12 +11,19 @@ export interface BranchQuestion {
   endLine: number;   // 0-based, inclusive
 }
 
+export interface RuleEvaluation {
+  ruleId: string;
+  detected: boolean;
+  confidence: number;
+}
+
 export interface BranchResult {
   id: string;
   startLine: number;
   endLine: number;
   vulnerability: boolean;
   confidence: number;
+  ruleResults: Record<string, RuleEvaluation>;
 }
 
 export class HttpError extends Error {
@@ -64,28 +73,32 @@ export class JevClient {
     branches: BranchQuestion[],
     filePath: string = 'code',
     signal?: AbortSignal,
-    customLineRange?: string
+    customLineRange?: string,
+    rules: LinterRule[] = [DEFAULT_RULES[0]]
   ): Promise<BranchResult[]> {
     if (!this.apiKey) {
       throw new Error('OpenRouter API Key is not configured.');
     }
 
-    if (branches.length === 0) {
+    if (branches.length === 0 || rules.length === 0) {
       return [];
     }
 
-    // 各ブランチに対する noul 質問を構築
+    // 各ブランチ × 有効ルールに対する noul 質問を構築
     const questions: Record<string, any> = {};
     for (const b of branches) {
       const displayRange = customLineRange || `${b.startLine + 1}-${b.endLine + 1}`;
-      questions[b.id] = {
-        type: 'noul',
-        instructions: `Target: security vulnerabilities, command injections, SQL injections, hardcoded credentials, unsanitized executions\nDo lines ${displayRange} contain vulnerabilities or security risks?`,
-        criteria: {
-          true: `Lines ${displayRange} contain vulnerabilities or security risks`,
-          false: `Lines ${displayRange} are safe`
-        }
-      };
+      for (const rule of rules) {
+        const qKey = `${b.id}__${rule.id}`;
+        questions[qKey] = {
+          type: 'noul',
+          instructions: `Target: ${rule.target}\nDo lines ${displayRange} contain ${rule.name} issues?`,
+          criteria: {
+            true: `Lines ${displayRange} contain ${rule.name} issues`,
+            false: `Lines ${displayRange} are safe`
+          }
+        };
+      }
     }
 
     const payload = {
@@ -118,14 +131,33 @@ export class JevClient {
     const answers = data.answers || {};
 
     return branches.map((b) => {
-      const ans = answers[b.id];
-      const prob = ans && typeof ans.noul === 'number' ? ans.noul : 0;
+      const ruleResults: Record<string, RuleEvaluation> = {};
+      let anyDetected = false;
+      let maxConfidence = 0;
+
+      for (const rule of rules) {
+        const qKey = `${b.id}__${rule.id}`;
+        const ans = answers[qKey];
+        const prob = ans && typeof ans.noul === 'number' ? ans.noul : 0;
+        const isDetected = prob >= 0.5;
+        ruleResults[rule.id] = {
+          ruleId: rule.id,
+          detected: isDetected,
+          confidence: prob
+        };
+        if (isDetected) {
+          anyDetected = true;
+          maxConfidence = Math.max(maxConfidence, prob);
+        }
+      }
+
       return {
         id: b.id,
         startLine: b.startLine,
         endLine: b.endLine,
-        vulnerability: prob >= 0.5,
-        confidence: prob
+        vulnerability: anyDetected,
+        confidence: maxConfidence,
+        ruleResults
       };
     });
   }

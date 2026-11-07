@@ -1,5 +1,75 @@
 import * as vscode from 'vscode';
 
+export type DiagnosticSeverityType = 'Error' | 'Warning' | 'Information' | 'Hint';
+
+export interface LinterRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  severity: DiagnosticSeverityType;
+  target: string;
+  message: string;
+}
+
+export const DEFAULT_RULES: LinterRule[] = [
+  {
+    id: 'security',
+    name: 'Security Vulnerabilities',
+    enabled: true,
+    severity: 'Warning',
+    target: 'security vulnerabilities, command injections, SQL injections, hardcoded credentials, unsanitized executions',
+    message: 'Jev [Security]: Potential security risk/vulnerability detected'
+  },
+  {
+    id: 'typo',
+    name: 'Typos & Spelling',
+    enabled: false,
+    severity: 'Information',
+    target: 'spelling mistakes, obvious typos in comments, string literals, error messages, or identifiers',
+    message: 'Jev [Typo]: Potential typo or spelling mistake detected'
+  },
+  {
+    id: 'policy',
+    name: 'Style & Policy Violations',
+    enabled: false,
+    severity: 'Warning',
+    target: 'policy violations, leftover debug prints/console.log, empty catch blocks swallowing errors, hardcoded environment URLs',
+    message: 'Jev [Policy]: Potential policy violation or leftover debug code detected'
+  },
+  {
+    id: 'redundancy',
+    name: 'Redundancy & Dead Code',
+    enabled: false,
+    severity: 'Information',
+    target: 'redundant code, unreachable statements, unnecessary temporary variables, needlessly complex conditions, reinvented built-in utils',
+    message: 'Jev [Redundancy]: Potential redundant or dead code detected'
+  },
+  {
+    id: 'legacy',
+    name: 'Legacy & Deprecated Practices',
+    enabled: false,
+    severity: 'Information',
+    target: 'deprecated syntax or outdated APIs, legacy idioms where modern language alternatives exist (e.g. var, callback hell)',
+    message: 'Jev [Legacy]: Potential deprecated API or legacy syntax detected'
+  },
+  {
+    id: 'performance',
+    name: 'Performance & Resource Leaks',
+    enabled: false,
+    severity: 'Warning',
+    target: 'performance anti-patterns, N+1 queries in loops, unclosed file or connection resources, costly repeated allocations in loops',
+    message: 'Jev [Perf]: Potential resource leak or performance pitfall detected'
+  },
+  {
+    id: 'robustness',
+    name: 'Robustness & Edge Cases',
+    enabled: false,
+    severity: 'Warning',
+    target: 'robustness issues, unhandled potential null/undefined dereferences, missing error handling for I/O, unprotected division by zero',
+    message: 'Jev [Robustness]: Potential missing error handling or edge-case guard detected'
+  }
+];
+
 export interface LinterConfig {
   apiKey: string;
   apiEndpoint: string;
@@ -18,6 +88,7 @@ export interface LinterConfig {
   includePattern: string;
   excludePattern: string;
   useGitignore: boolean;
+  rules: LinterRule[];
 }
 
 export function getLinterConfig(): LinterConfig {
@@ -60,7 +131,21 @@ export function getLinterConfig(): LinterConfig {
     excludePattern: config
       .get<string>('excludePattern', 'node_modules|\\.git|dist|out|build|vendor')
       .trim(),
-    useGitignore: config.get<boolean>('useGitignore', true)
+    useGitignore: config.get<boolean>('useGitignore', true),
+    rules: (() => {
+      const configuredRules = config.get<LinterRule[]>('rules', []);
+      if (!configuredRules || configuredRules.length === 0) {
+        return DEFAULT_RULES;
+      }
+      return configuredRules.map((r) => ({
+        id: r.id || 'custom',
+        name: r.name || 'Custom Rule',
+        enabled: r.enabled !== false,
+        severity: r.severity || 'Warning',
+        target: r.target || 'general issues',
+        message: r.message || 'Jev: Potential issue detected'
+      }));
+    })()
   };
 }
 

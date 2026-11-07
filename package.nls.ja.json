@@ -21,5 +21,6 @@
   "config.supportedLanguages.description": "自動スキャン対象とする言語IDのリスト",
   "config.includePattern.description": "一括スキャンの対象に含めるファイルパスの正規表現（空の場合はすべてのサポート言語ファイルが対象）",
   "config.excludePattern.description": "スキャンから除外するファイルパスの正規表現",
-  "config.useGitignore.description": "スキャン対象ファイルを収集する際に .gitignore の除外ルールを適用するかどうか"
+  "config.useGitignore.description": "スキャン対象ファイルを収集する際に .gitignore の除外ルールを適用するかどうか",
+  "config.rules.description": "カスタムの指示プロンプトや重要度を設定可能な検査ルール・カテゴリーのリスト"
 }

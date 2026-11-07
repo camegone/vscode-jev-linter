@@ -80,6 +80,86 @@ OpenRouterの決定モデル（System One / Decisions API）では、1回のリ�
 
 ---
 
+## 🎯 マルチカテゴリー検査 & カスタムルール設定
+
+セキュリティ脆弱性の検査にとどまらず、スペルミス、規約違反、不要コード、レガシー記法など、複数カテゴリーの検査を同時に実行できます。
+
+OpenRouter の System One API（マルチクエスチョン機能）により、**複数のカテゴリを同時に有効化しても 1 回の通信リクエストで並列判定**されるため、往復回数や余計な通信遅延は発生しません。
+
+### 標準搭載の7大プリセットカテゴリー
+
+| カテゴリID | 表示名 | 初期状態 | 初期重要度 | 検査対象の概要 |
+|:---|:---|:---:|:---:|:---|
+| **`security`** | **セキュリティ脆弱性** | **有効** | `Warning` (黄色波線) | SQLi、コマンド実行、XSS、APIキー/パスワード漏洩、危険な実行 |
+| **`typo`** | **スペルミス・誤字脱字** | 無効 | `Information` (青色波線) | コメント、文字列、エラー文、識別子内の明確なスペルミスや誤字脱字 |
+| **`policy`** | **規約・ポリシー違反** | 無効 | `Warning` (黄色波線) | 消し忘れのデバッグ文（`console.log`等）、空の例外握りつぶし、固定URL |
+| **`redundancy`** | **冗長な記述・デッドコード** | 無効 | `Information` (青色波線) | 到達不能コード、無意味な変数代入、過度に複雑な条件式、車輪の再発明 |
+| **`legacy`** | **時代遅れの記法・非推奨API** | 無効 | `Information` (青色波線) | 非推奨APIの使用、旧式構文（`var`、コールバック地獄など） |
+| **`performance`** | **性能低下・リソースリーク** | 無効 | `Warning` (黄色波線) | ループ内クエリ（N+1問題）、ファイル/DB接続のクローズ漏れ、無駄な大量生成 |
+| **`robustness`** | **例外・境界値ガード不足** | 無効 | `Warning` (黄色波線) | Null/Undefinedの未チェック参照、I/O処理の例外処理抜け、0除算 |
+
+### ルールのカスタマイズと独自ルールの追加 (`settings.json`)
+
+VS Code の `settings.json` の `jevLinter.rules` 配列を編集することで、プリセットの ON/OFF、重要度（Severity）の変更、および**プロジェクト固有のカスタムルールを自由に追加**できます：
+
+```jsonc
+{
+  "jevLinter.rules": [
+    // 1. デフォルトのセキュリティ検査は有効を維持
+    {
+      "id": "security",
+      "name": "セキュリティ脆弱性",
+      "enabled": true,
+      "severity": "Warning",
+      "target": "security vulnerabilities, command injections, SQL injections, hardcoded credentials, unsanitized executions",
+      "message": "Jev [Security]: セキュリティ脆弱性の可能性があります"
+    },
+    // 2. スペルミス・誤字脱字検査を青波線 (Information) で有効化
+    {
+      "id": "typo",
+      "name": "スペルミス・誤字脱字",
+      "enabled": true,
+      "severity": "Information",
+      "target": "spelling mistakes, obvious typos in comments, string literals, error messages, or identifiers",
+      "message": "Jev [Typo]: スペルミス・誤字脱字の可能性があります"
+    },
+    // 3. デバッグ文残存や規約違反の検査を有効化
+    {
+      "id": "policy",
+      "name": "規約・ポリシー違反",
+      "enabled": true,
+      "severity": "Warning",
+      "target": "policy violations, leftover debug prints/console.log, empty catch blocks swallowing errors, hardcoded environment URLs",
+      "message": "Jev [Policy]: 規約違反またはデバッグコード残存の可能性があります"
+    },
+    // 4. 自社・プロジェクト固有の独自カスタムルールを追加！
+    {
+      "id": "internal-standards",
+      "name": "社内コーディング規約",
+      "enabled": true,
+      "severity": "Warning",
+      "target": "usage of forbidden Axios library (native fetch must be used), direct localStorage access, or synchronous file operations",
+      "message": "Jev [社内規約]: 禁止ライブラリ(Axios)や同期I/Oが使用されています"
+    }
+  ]
+}
+```
+
+#### ルールの設定プロパティ
+
+- **`id`** *(文字列, 必須)*: ルールを一意に識別するキー。
+- **`name`** *(文字列, 必須)*: 問題一覧（Problems パネル）や波線ホバー時のソース名（例: `Jev (スペルミス・誤字脱字)`）として表示されます。
+- **`enabled`** *(真偽値, デフォルト: true)*: このルールによる検査の有効 / 無効。
+- **`severity`** *(文字列, デフォルト: "Warning")*: エディタ上の波線の種類：
+  - `"Error"`: 赤色波線（エラー）
+  - `"Warning"`: 黄色波線（警告）
+  - `"Information"`: 青色波線（情報）
+  - `"Hint"`: 薄い下線（ヒント）
+- **`target`** *(文字列, 必須)*: Jev モデルに渡す「検査対象・違反とみなすパターン」の英語説明文。具体的かつ明確に書くことでモデルの判定精度が向上します。
+- **`message`** *(文字列, 必須)*: エディタで波線にカーソルを合わせた際に表示されるメッセージの接頭辞。
+
+---
+
 ## 設定項目 (`settings.json`)
 
 | 設定項目 | デフォルト値 | 説明 |
@@ -101,6 +181,7 @@ OpenRouterの決定モデル（System One / Decisions API）では、1回のリ�
 | `jevLinter.includePattern` | `""` | 一括スキャン対象に含めるファイルパスの正規表現（空の場合はすべてのサポート言語ファイルが対象） |
 | `jevLinter.excludePattern` | `"node_modules\|\\.git\|dist\|out\|build\|vendor"` | スキャンから除外するファイルパスの正規表現 |
 | `jevLinter.useGitignore` | `true` | スキャン対象収集時に `.gitignore` の除外ルールを適用するかどうか |
+| `jevLinter.rules` | `[...]` | 検査ルール・カテゴリー設定（セキュリティ、スペルミス、規約違反、冗長コード、レガシー記法等）と独自カスタム指示 |
 
 ---
 

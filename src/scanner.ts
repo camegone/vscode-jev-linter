@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
 import { JevClient, BranchQuestion, BranchResult, HttpError } from './jevClient';
-import { LinterConfig } from './config';
+import { LinterConfig, LinterRule, DiagnosticSeverityType } from './config';
 import { decisionCache } from './cache';
 
-interface VulnerableRange {
+interface DetectedIssueRange {
   startLine: number;
   endLine: number;
   confidence: number;
+  rule: LinterRule;
   unresolved?: boolean;
 }
 
@@ -16,7 +17,7 @@ interface OversizedLine {
 }
 
 interface ScanResult {
-  vulnerableRanges: VulnerableRange[];
+  detectedIssues: DetectedIssueRange[];
   oversizedLines: OversizedLine[];
 }
 
@@ -61,8 +62,15 @@ export class Scanner {
 
       const diagnostics: vscode.Diagnostic[] = [];
 
-      // 1. 脆弱性が検出された行範囲（Warning: 黄色波線）
-      const mergedRanges = this.mergeRanges(scanResult.vulnerableRanges);
+      const severityMap: Record<DiagnosticSeverityType, vscode.DiagnosticSeverity> = {
+        Error: vscode.DiagnosticSeverity.Error,
+        Warning: vscode.DiagnosticSeverity.Warning,
+        Information: vscode.DiagnosticSeverity.Information,
+        Hint: vscode.DiagnosticSeverity.Hint
+      };
+
+      // 1. 各ルールで検出された問題（設定された Severity の波線）
+      const mergedRanges = this.mergeRanges(scanResult.detectedIssues);
       for (const range of mergedRanges) {
         const startPos = new vscode.Position(range.startLine, 0);
         const endLineText = document.lineAt(range.endLine).text;
@@ -75,24 +83,14 @@ export class Scanner {
             : `L${range.startLine + 1}-${range.endLine + 1}`;
 
         const confidencePct = Math.round(range.confidence * 100);
+        const baseMsg = range.rule.message;
         const message = range.unresolved
-          ? vscode.l10n.t(
-              'Jev: Potential security risk suspected across {0}, but could not be pinpointed to specific lines (confidence: {1}%)',
-              lineLoc,
-              confidencePct
-            )
-          : vscode.l10n.t(
-              'Jev: Potential security risk/vulnerability detected at {0} (confidence: {1}%)',
-              lineLoc,
-              confidencePct
-            );
+          ? `${baseMsg} across ${lineLoc} (unresolved, ${confidencePct}%)`
+          : `${baseMsg} at ${lineLoc} (${confidencePct}%)`;
 
-        const diag = new vscode.Diagnostic(
-          vsRange,
-          message,
-          vscode.DiagnosticSeverity.Warning
-        );
-        diag.source = 'Jev Security';
+        const severity = severityMap[range.rule.severity] || vscode.DiagnosticSeverity.Warning;
+        const diag = new vscode.Diagnostic(vsRange, message, severity);
+        diag.source = `Jev (${range.rule.name})`;
         diagnostics.push(diag);
       }
 
@@ -141,8 +139,13 @@ export class Scanner {
     const concurrency = this.config.concurrency;
     const maxChars = this.config.maxChunkChars;
     const maxBranches = this.config.maxBranchCount;
+    const activeRules = this.config.rules.filter((r) => r.enabled);
 
-    const detected: VulnerableRange[] = [];
+    if (activeRules.length === 0) {
+      return { detectedIssues: [], oversizedLines: [] };
+    }
+
+    const detected: DetectedIssueRange[] = [];
     const oversizedLines: OversizedLine[] = [];
     let fatalError: Error | null = null;
 
@@ -220,11 +223,14 @@ export class Scanner {
     interface QueueItem {
       start: number;
       end: number;
-      parentConfidence?: number;
+      activeRules: LinterRule[];
+      parentConfidence?: Record<string, number>;
     }
 
-    // 探索キューの初期化: 最初はファイル全体を1つのブロックとして投入
-    const queue: QueueItem[] = [{ start: 0, end: totalLines - 1, parentConfidence: undefined }];
+    // 探索キューの初期化: 最初はファイル全体を全有効ルールで投入
+    const queue: QueueItem[] = [
+      { start: 0, end: totalLines - 1, activeRules, parentConfidence: undefined }
+    ];
     let activeWorkers = 0;
 
     return new Promise<ScanResult>((resolve, reject) => {
@@ -235,13 +241,13 @@ export class Scanner {
         }
 
         if (token?.isCancellationRequested || signal.aborted) {
-          resolve({ vulnerableRanges: [], oversizedLines: [] });
+          resolve({ detectedIssues: [], oversizedLines: [] });
           return;
         }
 
         // キューが空で稼働中ワーカーもなければ探索完了
         if (queue.length === 0 && activeWorkers === 0) {
-          resolve({ vulnerableRanges: detected, oversizedLines });
+          resolve({ detectedIssues: detected, oversizedLines });
           return;
         }
 
@@ -259,6 +265,7 @@ export class Scanner {
               queue.push({
                 start: child.start,
                 end: child.end,
+                activeRules: item.activeRules,
                 parentConfidence: item.parentConfidence
               });
             }
@@ -266,19 +273,21 @@ export class Scanner {
           }
 
           // 2. 単一行で maxChunkChars を超過している場合:
-          // 切り捨てによる隠蔽リスク防止のため、赤波線エラーとして記録しAPI判定は行わない
           if (approxChars > maxChars && count === 1) {
             const lineLen = document.lineAt(item.start).text.length;
             oversizedLines.push({ line: item.start, charCount: lineLen });
             continue;
           }
 
-          // 3. キャッシュチェック（ブロック全体が過去に安全と判定されている場合は即座に枝刈り）
+          // 3. キャッシュチェック（全アクティブルールが過去に安全と判定されている場合は即座に枝刈り）
+          let currentRules = item.activeRules;
           if (this.config.enableCache && item.parentConfidence === undefined) {
             const rawBlock = getRangeRawContent(item.start, item.end);
-            const cachedBlock = decisionCache.get(this.config.model, rawBlock);
-            if (cachedBlock && !cachedBlock.vulnerability) {
-              // 過去に安全と判定されたブロックなのでAPI問い合わせも分割もスキップ
+            currentRules = currentRules.filter((r) => {
+              const cached = decisionCache.get(this.config.model, r.id, rawBlock);
+              return !(cached && !cached.detected);
+            });
+            if (currentRules.length === 0) {
               continue;
             }
           }
@@ -291,63 +300,61 @@ export class Scanner {
               // 親ブロックの行数がすでに minimumBlockSize 以下なら単一判定
               if (count <= minBlock) {
                 const rawSnippet = getRangeRawContent(item.start, item.end);
+                const rulesToQuery: LinterRule[] = [];
 
-                // キャッシュヒットの確認
-                if (this.config.enableCache) {
-                  const cached = decisionCache.get(this.config.model, rawSnippet);
-                  if (cached) {
-                    if (cached.vulnerability && cached.confidence >= threshold) {
-                      detected.push({
-                        startLine: item.start,
-                        endLine: item.end,
-                        confidence: cached.confidence,
-                        unresolved: false
-                      });
-                    } else if (item.parentConfidence !== undefined && this.config.warnUnresolvedBlocks) {
-                      detected.push({
-                        startLine: item.start,
-                        endLine: item.end,
-                        confidence: item.parentConfidence,
-                        unresolved: true
-                      });
+                for (const r of currentRules) {
+                  if (this.config.enableCache) {
+                    const cached = decisionCache.get(this.config.model, r.id, rawSnippet);
+                    if (cached) {
+                      if (cached.detected && cached.confidence >= threshold) {
+                        detected.push({
+                          startLine: item.start,
+                          endLine: item.end,
+                          confidence: cached.confidence,
+                          rule: r,
+                          unresolved: false
+                        });
+                      }
+                      continue;
                     }
-                    return;
                   }
+                  rulesToQuery.push(r);
                 }
 
-                const codeSnippet = getRangeContentWithLineNums(item.start, item.end);
-                const branches: BranchQuestion[] = [{ id: 'b0', startLine: item.start, endLine: item.end }];
-                const results = await this.client.scoreBranches(
-                  codeSnippet,
-                  branches,
-                  document.fileName,
-                  signal,
-                  `${item.start + 1}-${item.end + 1}`
-                );
+                if (rulesToQuery.length > 0) {
+                  const codeSnippet = getRangeContentWithLineNums(item.start, item.end);
+                  const branches: BranchQuestion[] = [{ id: 'b0', startLine: item.start, endLine: item.end }];
+                  const results = await this.client.scoreBranches(
+                    codeSnippet,
+                    branches,
+                    document.fileName,
+                    signal,
+                    `${item.start + 1}-${item.end + 1}`,
+                    rulesToQuery
+                  );
 
-                if (results.length > 0) {
-                  const res = results[0];
-                  if (this.config.enableCache) {
-                    decisionCache.set(this.config.model, rawSnippet, {
-                      vulnerability: res.vulnerability,
-                      confidence: res.confidence
-                    });
-                  }
-
-                  if (res.vulnerability && res.confidence >= threshold) {
-                    detected.push({
-                      startLine: item.start,
-                      endLine: item.end,
-                      confidence: res.confidence,
-                      unresolved: false
-                    });
-                  } else if (item.parentConfidence !== undefined && this.config.warnUnresolvedBlocks) {
-                    detected.push({
-                      startLine: item.start,
-                      endLine: item.end,
-                      confidence: item.parentConfidence,
-                      unresolved: true
-                    });
+                  if (results.length > 0) {
+                    const res = results[0];
+                    for (const r of rulesToQuery) {
+                      const evalRes = res.ruleResults[r.id];
+                      if (evalRes) {
+                        if (this.config.enableCache) {
+                          decisionCache.set(this.config.model, r.id, rawSnippet, {
+                            detected: evalRes.detected,
+                            confidence: evalRes.confidence
+                          });
+                        }
+                        if (evalRes.detected && evalRes.confidence >= threshold) {
+                          detected.push({
+                            startLine: item.start,
+                            endLine: item.end,
+                            confidence: evalRes.confidence,
+                            rule: r,
+                            unresolved: false
+                          });
+                        }
+                      }
+                    }
                   }
                 }
               } else {
@@ -355,107 +362,128 @@ export class Scanner {
                 const k = Math.min(maxBranches, count);
                 const branches = createSubBranches(item.start, item.end, k);
 
-                // 各子ブランチのキャッシュを事前チェックして、未解決のブランチのみAPIに送信する
-                const branchesToQuery: BranchQuestion[] = [];
-                const branchRawMap = new Map<string, string>();
-                let hasVulnerableChild = false;
+                const branchPendingRules = new Map<string, LinterRule[]>();
+                const branchSubLen = new Map<string, number>();
+                const branchActiveForNext = new Map<string, LinterRule[]>();
+                const rulesDetectedAnywhere = new Set<string>();
 
                 for (const b of branches) {
+                  const subLen = b.endLine - b.startLine + 1;
+                  branchSubLen.set(b.id, subLen);
                   const subRaw = getRangeRawContent(b.startLine, b.endLine);
-                  branchRawMap.set(b.id, subRaw);
+                  const pendingRules: LinterRule[] = [];
+                  const nextRules: LinterRule[] = [];
 
-                  if (this.config.enableCache) {
-                    const cached = decisionCache.get(this.config.model, subRaw);
-                    if (cached) {
-                      if (cached.vulnerability && cached.confidence >= threshold) {
-                        hasVulnerableChild = true;
-                        const subLen = b.endLine - b.startLine + 1;
-                        if (subLen <= minBlock) {
-                          detected.push({
-                            startLine: b.startLine,
-                            endLine: b.endLine,
-                            confidence: cached.confidence,
-                            unresolved: false
-                          });
-                        } else {
-                          queue.push({
-                            start: b.startLine,
-                            end: b.endLine,
-                            parentConfidence: cached.confidence
-                          });
+                  for (const r of currentRules) {
+                    if (this.config.enableCache) {
+                      const cached = decisionCache.get(this.config.model, r.id, subRaw);
+                      if (cached) {
+                        if (cached.detected && cached.confidence >= threshold) {
+                          rulesDetectedAnywhere.add(r.id);
+                          if (subLen <= minBlock) {
+                            detected.push({
+                              startLine: b.startLine,
+                              endLine: b.endLine,
+                              confidence: cached.confidence,
+                              rule: r,
+                              unresolved: false
+                            });
+                          } else {
+                            nextRules.push(r);
+                          }
                         }
+                        continue;
                       }
-                      // 安全とキャッシュされている場合は問い合わせ不要でスキップ
-                      continue;
                     }
+                    pendingRules.push(r);
                   }
 
-                  branchesToQuery.push(b);
+                  if (pendingRules.length > 0) {
+                    branchPendingRules.set(b.id, pendingRules);
+                  }
+                  if (nextRules.length > 0) {
+                    branchActiveForNext.set(b.id, nextRules);
+                  }
                 }
 
-                // キャッシュ未解決のブランチがある場合のみ API 呼び出し
+                // 未解決のブランチがある場合のみ API 呼び出し
+                const branchesToQuery = branches.filter((b) => branchPendingRules.has(b.id));
                 if (branchesToQuery.length > 0) {
+                  const allRulesToQuery = Array.from(
+                    new Set(branchesToQuery.flatMap((b) => branchPendingRules.get(b.id)!))
+                  );
+
                   const codeSnippet = getRangeContentWithLineNums(item.start, item.end);
                   const results = await this.client.scoreBranches(
                     codeSnippet,
                     branchesToQuery,
                     document.fileName,
-                    signal
+                    signal,
+                    undefined,
+                    allRulesToQuery
                   );
 
                   for (const res of results) {
-                    const subRaw = branchRawMap.get(res.id);
-                    if (subRaw && this.config.enableCache) {
-                      decisionCache.set(this.config.model, subRaw, {
-                        vulnerability: res.vulnerability,
-                        confidence: res.confidence
-                      });
+                    const subLen = branchSubLen.get(res.id) || 1;
+                    const b = branches.find((br) => br.id === res.id)!;
+                    const subRaw = getRangeRawContent(b.startLine, b.endLine);
+                    const nextRules = branchActiveForNext.get(res.id) || [];
+
+                    for (const r of allRulesToQuery) {
+                      const evalRes = res.ruleResults[r.id];
+                      if (evalRes) {
+                        if (this.config.enableCache) {
+                          decisionCache.set(this.config.model, r.id, subRaw, {
+                            detected: evalRes.detected,
+                            confidence: evalRes.confidence
+                          });
+                        }
+                        if (evalRes.detected && evalRes.confidence >= threshold) {
+                          rulesDetectedAnywhere.add(r.id);
+                          if (subLen <= minBlock) {
+                            detected.push({
+                              startLine: b.startLine,
+                              endLine: b.endLine,
+                              confidence: evalRes.confidence,
+                              rule: r,
+                              unresolved: false
+                            });
+                          } else {
+                            nextRules.push(r);
+                          }
+                        }
+                      }
                     }
 
-                    if (res.vulnerability && res.confidence >= threshold) {
-                      hasVulnerableChild = true;
-                      const subLen = res.endLine - res.startLine + 1;
-                      if (subLen <= minBlock) {
-                        // minimumBlockSize に達したため確定
-                        detected.push({
-                          startLine: res.startLine,
-                          endLine: res.endLine,
-                          confidence: res.confidence,
-                          unresolved: false
-                        });
-                      } else {
-                        // さらに絞り込むため次の階層のキューに投入
-                        queue.push({
-                          start: res.startLine,
-                          end: res.endLine,
-                          parentConfidence: res.confidence
-                        });
-                      }
+                    if (nextRules.length > 0) {
+                      branchActiveForNext.set(res.id, nextRules);
                     }
                   }
                 }
 
-                // 子ブロックがすべて安全だった場合、親ブロック全体も「安全」としてキャッシュ
-                if (this.config.enableCache && !hasVulnerableChild && item.parentConfidence === undefined) {
-                  const parentRaw = getRangeRawContent(item.start, item.end);
-                  decisionCache.set(this.config.model, parentRaw, {
-                    vulnerability: false,
-                    confidence: 0
-                  });
+                // 探索キューに次階層のブランチを投入
+                for (const b of branches) {
+                  const nextRules = branchActiveForNext.get(b.id);
+                  if (nextRules && nextRules.length > 0) {
+                    queue.push({
+                      start: b.startLine,
+                      end: b.endLine,
+                      activeRules: nextRules
+                    });
+                  }
                 }
 
-                // 子ブロックがすべて閾値未満だったが、親ブロックが疑わしいと判定されていた場合
-                if (
-                  !hasVulnerableChild &&
-                  item.parentConfidence !== undefined &&
-                  this.config.warnUnresolvedBlocks
-                ) {
-                  detected.push({
-                    startLine: item.start,
-                    endLine: item.end,
-                    confidence: item.parentConfidence,
-                    unresolved: true
-                  });
+                // 親ブロック全体で、どの子ブランチでも検出されなかったルールは「安全」としてキャッシュ
+                if (this.config.enableCache && item.parentConfidence === undefined) {
+                  const parentRaw = getRangeRawContent(item.start, item.end);
+                  for (const r of currentRules) {
+                    if (!rulesDetectedAnywhere.has(r.id)) {
+                      decisionCache.set(this.config.model, r.id, parentRaw, {
+                        detected: false,
+                        confidence: 0
+                      });
+                    }
+                  }
                 }
               }
             } catch (err: any) {
@@ -475,7 +503,7 @@ export class Scanner {
 
         // whileループ内で全アイテムが同期的スキップされ、キューが空かつ稼働ワーカーが0になった場合の解決
         if (queue.length === 0 && activeWorkers === 0) {
-          resolve({ vulnerableRanges: detected, oversizedLines });
+          resolve({ detectedIssues: detected, oversizedLines });
           return;
         }
       };
@@ -485,34 +513,43 @@ export class Scanner {
   }
 
   /**
-   * 重複・隣接する行範囲をマージ
+   * 重複・隣接する行範囲を同一ルールごとにマージ
    */
-  private mergeRanges(ranges: VulnerableRange[]): VulnerableRange[] {
+  private mergeRanges(ranges: DetectedIssueRange[]): DetectedIssueRange[] {
     if (ranges.length <= 1) {
       return ranges;
     }
 
-    const sorted = [...ranges].sort((a, b) => a.startLine - b.startLine);
-    const merged: VulnerableRange[] = [];
-
-    let current = { ...sorted[0] };
-
-    for (let i = 1; i < sorted.length; i++) {
-      const next = sorted[i];
-
-      if (
-        next.startLine <= current.endLine + 1 &&
-        (current.unresolved ?? false) === (next.unresolved ?? false)
-      ) {
-        current.endLine = Math.max(current.endLine, next.endLine);
-        current.confidence = Math.max(current.confidence, next.confidence);
-      } else {
-        merged.push(current);
-        current = { ...next };
-      }
+    const byRule = new Map<string, DetectedIssueRange[]>();
+    for (const r of ranges) {
+      const list = byRule.get(r.rule.id) || [];
+      list.push(r);
+      byRule.set(r.rule.id, list);
     }
-    merged.push(current);
 
-    return merged;
+    const mergedAll: DetectedIssueRange[] = [];
+
+    for (const [, list] of byRule) {
+      const sorted = [...list].sort((a, b) => a.startLine - b.startLine);
+      let current = { ...sorted[0] };
+
+      for (let i = 1; i < sorted.length; i++) {
+        const next = sorted[i];
+
+        if (
+          next.startLine <= current.endLine + 1 &&
+          (current.unresolved ?? false) === (next.unresolved ?? false)
+        ) {
+          current.endLine = Math.max(current.endLine, next.endLine);
+          current.confidence = Math.max(current.confidence, next.confidence);
+        } else {
+          mergedAll.push(current);
+          current = { ...next };
+        }
+      }
+      mergedAll.push(current);
+    }
+
+    return mergedAll;
   }
 }

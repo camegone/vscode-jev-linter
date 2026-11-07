@@ -2,7 +2,7 @@
   "name": "vscode-jev-linter",
   "displayName": "Jev Security Linter",
   "description": "Ultra-fast security vulnerability linter powered by TypeSafe Jev via OpenRouter.",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "publisher": "camegone",
   "license": "MIT",
   "repository": {
@@ -174,6 +174,101 @@
           "type": "boolean",
           "default": true,
           "description": "%config.useGitignore.description%"
+        },
+        "jevLinter.rules": {
+          "type": "array",
+          "description": "%config.rules.description%",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Rule identifier (e.g. security, typo, policy)"
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name of the category"
+              },
+              "enabled": {
+                "type": "boolean",
+                "default": true,
+                "description": "Whether this rule is active"
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["Error", "Warning", "Information", "Hint"],
+                "default": "Warning",
+                "description": "Squiggly line severity in editor"
+              },
+              "target": {
+                "type": "string",
+                "description": "Target description prompt passed to Jev"
+              },
+              "message": {
+                "type": "string",
+                "description": "Prefix message displayed in the squiggly hover"
+              }
+            },
+            "required": ["id", "name", "target", "message"]
+          },
+          "default": [
+            {
+              "id": "security",
+              "name": "Security Vulnerabilities",
+              "enabled": true,
+              "severity": "Warning",
+              "target": "security vulnerabilities, command injections, SQL injections, hardcoded credentials, unsanitized executions",
+              "message": "Jev [Security]: Potential security risk/vulnerability detected"
+            },
+            {
+              "id": "typo",
+              "name": "Typos & Spelling",
+              "enabled": false,
+              "severity": "Information",
+              "target": "spelling mistakes, obvious typos in comments, string literals, error messages, or identifiers",
+              "message": "Jev [Typo]: Potential typo or spelling mistake detected"
+            },
+            {
+              "id": "policy",
+              "name": "Style & Policy Violations",
+              "enabled": false,
+              "severity": "Warning",
+              "target": "policy violations, leftover debug prints/console.log, empty catch blocks swallowing errors, hardcoded environment URLs",
+              "message": "Jev [Policy]: Potential policy violation or leftover debug code detected"
+            },
+            {
+              "id": "redundancy",
+              "name": "Redundancy & Dead Code",
+              "enabled": false,
+              "severity": "Information",
+              "target": "redundant code, unreachable statements, unnecessary temporary variables, needlessly complex conditions, reinvented built-in utils",
+              "message": "Jev [Redundancy]: Potential redundant or dead code detected"
+            },
+            {
+              "id": "legacy",
+              "name": "Legacy & Deprecated Practices",
+              "enabled": false,
+              "severity": "Information",
+              "target": "deprecated syntax or outdated APIs, legacy idioms where modern language alternatives exist (e.g. var, callback hell)",
+              "message": "Jev [Legacy]: Potential deprecated API or legacy syntax detected"
+            },
+            {
+              "id": "performance",
+              "name": "Performance & Resource Leaks",
+              "enabled": false,
+              "severity": "Warning",
+              "target": "performance anti-patterns, N+1 queries in loops, unclosed file or connection resources, costly repeated allocations in loops",
+              "message": "Jev [Perf]: Potential resource leak or performance pitfall detected"
+            },
+            {
+              "id": "robustness",
+              "name": "Robustness & Edge Cases",
+              "enabled": false,
+              "severity": "Warning",
+              "target": "robustness issues, unhandled potential null/undefined dereferences, missing error handling for I/O, unprotected division by zero",
+              "message": "Jev [Robustness]: Potential missing error handling or edge-case guard detected"
+            }
+          ]
         }
       }
     }

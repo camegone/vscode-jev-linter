@@ -21,5 +21,6 @@
   "config.supportedLanguages.description": "List of language IDs to automatically scan",
   "config.includePattern.description": "Regular expression pattern of file paths to include for batch scanning (empty matches all supported language files)",
   "config.excludePattern.description": "Regular expression pattern of file paths to exclude from scanning",
-  "config.useGitignore.description": "Whether to respect .gitignore exclusion rules when collecting files to scan"
+  "config.useGitignore.description": "Whether to respect .gitignore exclusion rules when collecting files to scan",
+  "config.rules.description": "List of evaluation rules and categories with custom targets and severity levels"
 }
