@@ -88,7 +88,7 @@ On OpenRouter's decision endpoints (System One / Decisions API), batching multip
 | `jevLinter.model` | `"~typesafe/jev-latest"` | Decision AI model to use (OpenRouter model slug) |
 | `jevLinter.threshold` | `0.65` | Confidence threshold to trigger warnings (0.0 - 1.0) |
 | `jevLinter.maxBranchCount` | `8` | Number of branch divisions / parallel questions per request (2 - 64). Higher = faster but more tokens; lower = cheaper but more round-trips |
-| `jevLinter.minimumBlockSize` | `4` | Minimum block size in lines to stop branch division (down to 1 line) |
+| `jevLinter.minimumBlockSize` | `1` | Minimum block size in lines to stop branch division (down to 1 line) |
 | `jevLinter.overlapRatio` | `0.15` | Boundary overlap ratio for binary search (0.0 - 0.4) |
 | `jevLinter.maxChunkChars` | `60000` | Max characters per request. Larger blocks are divided locally without API calls. |
 | `jevLinter.concurrency` | `4` | Number of concurrent API requests |

@@ -88,7 +88,7 @@ OpenRouterの決定モデル（System One / Decisions API）では、1回のリ�
 | `jevLinter.model` | `"~typesafe/jev-latest"` | 使用する判定AIモデル |
 | `jevLinter.threshold` | `0.65` | 警告を出す確信度閾値 (0.0 〜 1.0) |
 | `jevLinter.maxBranchCount` | `8` | 1回のリクエストで分割・並列評価するブロック数 / 質問数 (2 〜 64)。増やすと高速化・コスト増、減らすと低コスト・低速化 |
-| `jevLinter.minimumBlockSize` | `4` | 探索で分割を停止する最小行数（1〜20行で調整可能） |
+| `jevLinter.minimumBlockSize` | `1` | 探索で分割を停止する最小行数（1〜20行で調整可能） |
 | `jevLinter.overlapRatio` | `0.15` | 二分探索時の境界オーバーラップ割合（0.0 〜 0.4） |
 | `jevLinter.maxChunkChars` | `60000` | 1回のリクエストの最大文字数（超過時はAPIを呼ばずに二分割） |
 | `jevLinter.concurrency` | `4` | APIの並行リクエスト数 |

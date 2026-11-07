@@ -30,7 +30,7 @@ export function getLinterConfig(): LinterConfig {
     model: config.get<string>('model', '~typesafe/jev-latest').trim(),
     threshold: config.get<number>('threshold', 0.65),
     maxBranchCount: Math.min(64, Math.max(2, config.get<number>('maxBranchCount', 8))),
-    minimumBlockSize: Math.max(1, config.get<number>('minimumBlockSize', 4)),
+    minimumBlockSize: Math.max(1, config.get<number>('minimumBlockSize', 1)),
     overlapRatio: Math.min(0.4, Math.max(0.0, config.get<number>('overlapRatio', 0.15))),
     maxChunkChars: Math.max(1000, config.get<number>('maxChunkChars', 60000)),
     concurrency: Math.max(1, config.get<number>('concurrency', 4)),

@@ -2,7 +2,7 @@
   "name": "vscode-jev-linter",
   "displayName": "Jev Security Linter",
   "description": "Ultra-fast security vulnerability linter powered by TypeSafe Jev via OpenRouter.",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "publisher": "camegone",
   "license": "MIT",
   "repository": {
@@ -90,7 +90,7 @@
         },
         "jevLinter.minimumBlockSize": {
           "type": "number",
-          "default": 4,
+          "default": 1,
           "minimum": 1,
           "maximum": 20,
           "description": "%config.minimumBlockSize.description%"
