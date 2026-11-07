@@ -472,6 +472,12 @@ export class Scanner {
             }
           })();
         }
+
+        // whileループ内で全アイテムが同期的スキップされ、キューが空かつ稼働ワーカーが0になった場合の解決
+        if (queue.length === 0 && activeWorkers === 0) {
+          resolve({ vulnerableRanges: detected, oversizedLines });
+          return;
+        }
       };
 
       pump();
